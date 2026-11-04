@@ -18,7 +18,8 @@
     view: "dad", step: "home", auth: "email",
     session: null, me: null, members: [], entries: [], settings: {...DEFAULTS},
     loaded: false, draft: null, last: null, undoTimer: null, saving: false,
-    editCarbs: null, confirmDel: null, confirmMember: null, photoUrls: {}, channel: null
+    editCarbs: null, confirmDel: null, confirmMember: null, photoUrls: {}, channel: null,
+    appts: [], calMonth: null, calDay: null, apptForm: null, confirmAppt: null
   };
 
   const store = {
@@ -59,9 +60,9 @@
   /* ---------- Routing ---------- */
   function route(){
     const h = (location.hash || "").slice(1);
-    if (["dad", "family", "settings"].includes(h)) S.view = h;
+    if (["dad", "family", "calendar", "settings"].includes(h)) S.view = h;
     if (S.view !== "dad") S.step = "home";
-    for (const v of ["dad", "family", "settings"]){
+    for (const v of ["dad", "family", "calendar", "settings"]){
       const el = $("#tab-" + v);
       if (v === S.view) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
     }
@@ -135,8 +136,8 @@
     }
     S.me = me;
     $("#tabs").hidden = isDad();
-    if (!["dad", "family", "settings"].includes((location.hash || "").slice(1))) S.view = isDad() ? "dad" : "family";
-    await Promise.all([loadEntries(), loadSettings(), loadMembers()]);
+    if (!["dad", "family", "calendar", "settings"].includes((location.hash || "").slice(1))) S.view = isDad() ? "dad" : "family";
+    await Promise.all([loadEntries(), loadSettings(), loadMembers(), loadAppts()]);
     S.loaded = true;
     subscribe();
     route();
@@ -158,6 +159,11 @@
     const {data} = await sb.from("members").select("*").order("added_at");
     if (data) S.members = data;
   }
+  async function loadAppts(){
+    const since = new Date(Date.now() - 120 * 864e5).toISOString();
+    const {data, error} = await sb.from("appointments").select("*").gte("starts_at", since).order("starts_at").limit(500);
+    if (!error && data) S.appts = data.slice().sort((x, y) => new Date(x.starts_at) - new Date(y.starts_at));
+  }
   async function refreshPhotoUrls(){
     const now = Date.now();
     const need = S.entries.map(e => e.photo_path).filter(p => p && !(S.photoUrls[p] && S.photoUrls[p].exp > now));
@@ -178,6 +184,7 @@
     S.channel = sb.channel("dose-log")
       .on("postgres_changes", {event: "*", schema: "public", table: "entries"}, scheduleReload)
       .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, async () => { await loadSettings(); softRender(); })
+      .on("postgres_changes", {event: "*", schema: "public", table: "appointments"}, async () => { await loadAppts(); softRender(); })
       .subscribe();
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && S.me) scheduleReload(); });
@@ -188,7 +195,8 @@
   function softRender(){
     if (!S.me) return;
     if (S.view === "family" && !S.editCarbs && !S.confirmDel) return render();
-    if (S.view === "dad" && S.step === "home") return render();
+    if (S.view === "dad" && (S.step === "home" || S.step === "appts")) return render();
+    if (S.view === "calendar" && !S.apptForm && !S.confirmAppt) return render();
   }
 
   /* ---------- Dad ---------- */
@@ -209,7 +217,33 @@
           <strong>Snack</strong><span>No insulin, just what you ate</span>
         </button>
       </div>
+      ${nextApptCard()}
       ${isDad() ? `<a class="link" href="#family" style="align-self:center">See today's log</a>` : ""}
+    </div>`;
+  }
+  function nextApptCard(){
+    const up = upcoming();
+    if (!up.length) return "";
+    const a = up[0];
+    return `<section class="appt-next">
+      <span class="lab">Next appointment</span>
+      <strong>${esc(a.title)}</strong>
+      <span>${apptWhen(a)}</span>
+      ${a.place ? `<span class="muted">${esc(a.place)}</span>` : ""}
+      ${up.length > 1 ? `<button class="secondary" data-act="dad-appts">See all ${up.length} appointments</button>` : ""}
+    </section>`;
+  }
+  function dadAppts(){
+    const up = upcoming();
+    return `<div class="screen">
+      <button class="back" data-act="home">← Back</button>
+      <p class="q">Your appointments</p>
+      ${up.length ? `<div class="stack">${up.map(a => `<div class="appt-card">
+          <span class="when">${apptWhen(a)}</span>
+          <strong>${esc(a.title)}</strong>
+          ${a.place ? `<span class="muted">${esc(a.place)}</span>` : ""}
+          ${a.notes ? `<span class="muted">${esc(a.notes)}</span>` : ""}
+        </div>`).join("")}</div>` : `<div class="empty">No appointments coming up.</div>`}
     </div>`;
   }
   function dadAlreadyLong(){
@@ -324,6 +358,98 @@
       <span class="kind">${k.short}${dose}</span>${food ? `<span class="food">${food}</span>` : ""}${img}${by}<div class="acts">${acts}</div></div></div>`;
   }
 
+  /* ---------- Appointments ---------- */
+  function startOfToday(){ const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+  function upcoming(){ const t = startOfToday(); return S.appts.filter(a => new Date(a.starts_at) >= t); }
+  function dayLabel(t){
+    const k = dayKey(t), tk = today(), tom = dayKey(Date.now() + 864e5);
+    if (k === tk) return "Today";
+    if (k === tom) return "Tomorrow";
+    return new Date(t).toLocaleDateString("en-GB", {weekday: "long", day: "numeric", month: "long"});
+  }
+  const apptWhen = a => dayLabel(a.starts_at) + ", " + tm(a.starts_at);
+  const apptsOn = key => S.appts.filter(a => dayKey(a.starts_at) === key);
+
+  function calendar(){
+    if (!S.loaded) return `<div class="empty">Loading…</div>`;
+    const now = new Date();
+    const m = S.calMonth || {y: now.getFullYear(), m: now.getMonth()};
+    S.calMonth = m;
+    const sel = S.calDay || today();
+    const first = new Date(m.y, m.m, 1);
+    const lead = (first.getDay() + 6) % 7;                 // weeks start Monday
+    const days = new Date(m.y, m.m + 1, 0).getDate();
+    let cells = "";
+    for (let i = 0; i < lead; i++) cells += `<span class="cal-pad"></span>`;
+    for (let d = 1; d <= days; d++){
+      const key = dayKey(new Date(m.y, m.m, d));
+      const n = apptsOn(key).length;
+      cells += `<button class="cal-day${key === today() ? " is-today" : ""}${key === sel ? " is-sel" : ""}" data-calday="${key}" aria-label="${d}${n ? ", " + n + " appointment" + (n > 1 ? "s" : "") : ""}">
+        <span>${d}</span>${n ? `<i class="dot"></i>` : ""}</button>`;
+    }
+    const title = first.toLocaleDateString("en-GB", {month: "long", year: "numeric"});
+    const list = apptsOn(sel);
+    const up = upcoming().slice(0, 6);
+    return `<div class="screen">
+      <h1>Appointments</h1>
+      <div class="cal">
+        <div class="cal-head">
+          <button class="cal-nav" data-act="cal-prev" aria-label="Previous month">‹</button>
+          <strong>${title}</strong>
+          <button class="cal-nav" data-act="cal-next" aria-label="Next month">›</button>
+        </div>
+        <div class="cal-grid">${["M","T","W","T","F","S","S"].map(d => `<span class="cal-dow">${d}</span>`).join("")}${cells}</div>
+      </div>
+      <section class="day">
+        <h3>${dayLabel(new Date(sel + "T12:00"))}</h3>
+        ${list.length ? `<div class="entries">${list.map(apptRow).join("")}</div>` : `<p class="hint">Nothing on this day.</p>`}
+      </section>
+      ${S.apptForm ? apptFormView() : `<button class="secondary" data-act="appt-new">+ Add appointment</button>`}
+      ${up.length ? `<section class="day"><h3>Coming up</h3><div class="entries">${up.map(a => apptRow(a, true)).join("")}</div></section>` : ""}
+    </div>`;
+  }
+  function apptRow(a, withDay){
+    let acts;
+    if (S.confirmAppt === a.id) acts = `<span>Remove this appointment?</span><button class="link danger" data-rmappt="${a.id}">Yes, remove</button><button class="link" data-act="cancel-appt">Keep</button>`;
+    else acts = `<button class="link" data-editappt="${a.id}">Edit</button><button class="link" data-askappt="${a.id}">Remove</button>`;
+    return `<div class="entry" style="--c:var(--long)"><time>${tm(a.starts_at)}</time><div class="body">
+      <span class="kind">${esc(a.title)}</span>
+      ${withDay ? `<span class="food">${dayLabel(a.starts_at)}</span>` : ""}
+      ${a.place ? `<span class="food">${esc(a.place)}</span>` : ""}
+      ${a.notes ? `<span class="food">${esc(a.notes)}</span>` : ""}
+      ${withDay ? "" : `<div class="acts">${acts}</div>`}</div></div>`;
+  }
+  function apptFormView(){
+    const f = S.apptForm;
+    return `<form class="stack appt-form" id="appt-form">
+      <h2>${f.id ? "Edit appointment" : "New appointment"}</h2>
+      <div class="field"><label for="a-title">What is it?</label><input class="input" id="a-title" type="text" maxlength="120" required placeholder="e.g. Diabetes clinic" value="${esc(f.title || "")}"></div>
+      <div class="row2">
+        <div class="field"><label for="a-date">Date</label><input class="input" id="a-date" type="date" required value="${esc(f.date)}"></div>
+        <div class="field"><label for="a-time">Time</label><input class="input" id="a-time" type="time" required value="${esc(f.time || "09:00")}"></div>
+      </div>
+      <div class="field"><label for="a-place">Where (optional)</label><input class="input" id="a-place" type="text" maxlength="200" placeholder="e.g. Whiston Hospital, Outpatients" value="${esc(f.place || "")}"></div>
+      <div class="field"><label for="a-notes">Notes (optional)</label><input class="input" id="a-notes" type="text" maxlength="1000" placeholder="e.g. Bring the meter. Sister driving." value="${esc(f.notes || "")}"></div>
+      <p class="err" id="a-err" hidden></p>
+      <button class="primary dark" type="submit">${f.id ? "Save changes" : "Add appointment"}</button>
+      <button class="link" type="button" data-act="appt-cancel">Cancel</button>
+    </form>`;
+  }
+  async function saveAppt(){
+    const title = $("#a-title").value.trim(), date = $("#a-date").value, time = $("#a-time").value;
+    const err = $("#a-err");
+    if (!title || !date || !time){ err.hidden = false; err.textContent = "Add what it is, the date and the time."; return; }
+    const row = {title, starts_at: new Date(date + "T" + time).toISOString(),
+      place: $("#a-place").value.trim() || null, notes: $("#a-notes").value.trim() || null};
+    const id = S.apptForm.id;
+    const q = id ? sb.from("appointments").update(row).eq("id", id) : sb.from("appointments").insert(row);
+    const {error} = await q;
+    if (error){ err.hidden = false; err.textContent = /appointments/.test(error.message || "") && /exist|schema cache/.test(error.message || "")
+      ? "The appointments table isn't set up yet. Run supabase/02-appointments.sql in Supabase." : "Couldn't save: " + errText(error); return; }
+    S.apptForm = null; S.calDay = date;
+    await loadAppts(); render();
+  }
+
   /* ---------- Settings ---------- */
   function settings(){
     const s = S.settings;
@@ -371,7 +497,8 @@
     if (!S.me) html = loginView();
     else if (S.view === "family") html = family();
     else if (S.view === "settings") html = isDad() ? family() : settings();
-    else html = ({home: dadHome, already: dadAlreadyLong, dose: dadDose, food: dadFood, tick: dadTick})[S.step]();
+    else if (S.view === "calendar") html = isDad() ? (S.view = "dad", S.step = "appts", dadAppts()) : calendar();
+    else html = ({home: dadHome, already: dadAlreadyLong, dose: dadDose, food: dadFood, tick: dadTick, appts: dadAppts})[S.step]();
     $("#view").innerHTML = html;
   }
 
@@ -514,6 +641,21 @@
       else if (e?.photo_path) sb.storage.from("photos").remove([e.photo_path]);
       return;
     }
+    if (t.dataset.calday){ S.calDay = t.dataset.calday; S.confirmAppt = null; return render(); }
+    if (t.dataset.editappt){
+      const a = S.appts.find(x => x.id === t.dataset.editappt); if (!a) return;
+      const d = new Date(a.starts_at);
+      S.apptForm = {id: a.id, title: a.title, date: dayKey(d), time: String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"), place: a.place, notes: a.notes};
+      render(); $("#appt-form")?.scrollIntoView({block: "start"}); return;
+    }
+    if (t.dataset.askappt){ S.confirmAppt = t.dataset.askappt; return render(); }
+    if (t.dataset.rmappt){
+      const id = t.dataset.rmappt; S.confirmAppt = null;
+      S.appts = S.appts.filter(a => a.id !== id); render();
+      const {error} = await sb.from("appointments").delete().eq("id", id);
+      if (error){ banner("Couldn't remove the appointment."); await loadAppts(); render(); }
+      return;
+    }
     if (t.dataset.askmember){ S.confirmMember = t.dataset.askmember; return render(); }
     if (t.dataset.rmmember) return removeMember(t.dataset.rmmember);
     switch (a){
@@ -530,6 +672,14 @@
       case "cancel-carbs": S.editCarbs = null; render(); break;
       case "cancel-del": S.confirmDel = null; render(); break;
       case "cancel-member": S.confirmMember = null; render(); break;
+      case "dad-appts": S.step = "appts"; render(); window.scrollTo(0, 0); break;
+      case "cal-prev": case "cal-next": {
+        const m = S.calMonth, step = a === "cal-next" ? 1 : -1, d = new Date(m.y, m.m + step, 1);
+        S.calMonth = {y: d.getFullYear(), m: d.getMonth()}; render(); break;
+      }
+      case "appt-new": S.apptForm = {date: S.calDay || today(), time: "09:00"}; render(); $("#a-title")?.focus(); break;
+      case "appt-cancel": S.apptForm = null; render(); break;
+      case "cancel-appt": S.confirmAppt = null; render(); break;
       case "signout": signOut(); break;
       case "resend": { const em = store.get("doselog.pendingEmail"); S.auth = "email"; render(); if (em) sendCode(em); break; }
       case "other-email": store.set("doselog.pendingEmail", null); S.auth = "email"; render(); break;
@@ -540,6 +690,7 @@
     if (ev.target.id === "email-form") sendCode($("#email-in").value.trim().toLowerCase());
     if (ev.target.id === "code-form") verifyCode();
     if (ev.target.id === "member-form") addMember();
+    if (ev.target.id === "appt-form") saveAppt();
   });
   document.addEventListener("change", ev => { if (ev.target.id === "photo-in") onPhoto(ev.target.files[0]); });
 
