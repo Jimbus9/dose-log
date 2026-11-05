@@ -2,9 +2,9 @@
 
 A simple shared log of insulin doses and meals, kept by the person taking them and visible to their family.
 
-- **Dad's screen:** three big buttons: long-acting insulin, meal + insulin, snack. Food can be logged as a photo, a few words, or carbs.
+- **Home screen:** three big buttons: long-acting insulin, meal + insulin, snack. Food can be logged as a photo, a few words, or carbs.
 - **Family screen:** today's status, a flag if long-acting hasn't been logged by a set time, and a timeline of every dose, meal and snack.
-- **Appointments:** the family sees a month calendar and can add, edit and remove appointments. Dad's screen shows the next one and a simple list.
+- **Appointments:** the family sees a month calendar and can add, edit and remove appointments. The Home screen shows the next one and a simple list.
 - **Safety:** tapping long-acting twice in a day shows a warning first. The app never suggests or calculates a dose.
 
 Glucose readings are not part of this app.

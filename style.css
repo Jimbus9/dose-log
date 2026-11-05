@@ -1,5 +1,5 @@
 /* Dose Log. One narrow phone-first column.
-   Dad's view: three giant buttons. Family view: status, then timeline. */
+   Home view: three giant buttons. Family view: status, then timeline. */
 :root{
   --bg:#F1F5F6; --surface:#FFFFFF; --ink:#13232A; --muted:#55666D; --line:#D3DDE0;
   --long:#0E7471; --meal:#B9520C; --snack:#64489A; --on:#FFFFFF;

@@ -1,7 +1,7 @@
 {
   "name": "Dose Log",
   "short_name": "Dose Log",
-  "description": "Insulin, meals and snacks for Dad, shared with the family.",
+  "description": "Log insulin, meals and snacks, and share them with your family.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

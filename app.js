@@ -331,7 +331,7 @@
         <div class="stat"><span class="lab">Snacks today</span><span class="val">${todays("snack").length}</span></div>
       </div>`;
     if (!S.entries.length){
-      return html + `<div class="empty">Nothing logged yet. Every tap on the Dad screen shows up here straight away, with times, units and food photos.</div></div>`;
+      return html + `<div class="empty">Nothing logged yet. Every tap on the Home screen shows up here straight away, with times, units and food photos.</div></div>`;
     }
     const groups = {};
     for (const e of S.entries) (groups[dayKey(e.at)] ||= []).push(e);
@@ -456,14 +456,14 @@
     const people = S.members.map(m => {
       const self = m.email === S.me.email;
       const confirm = S.confirmMember === m.email;
-      return `<li><span class="who"><b>${esc(m.name || m.email.split("@")[0])}${self ? " (you)" : ""}</b>${esc(m.email)} · ${m.role === "dad" ? "Dad's phone" : "Family"}</span>
+      return `<li><span class="who"><b>${esc(m.name || m.email.split("@")[0])}${self ? " (you)" : ""}</b>${esc(m.email)} · ${m.role === "dad" ? "Logs doses (Home screen only)" : "Family"}</span>
         ${self ? "" : confirm
           ? `<span><button class="link danger" data-rmmember="${esc(m.email)}">Remove</button> <button class="link" data-act="cancel-member">Keep</button></span>`
           : `<button class="link" data-askmember="${esc(m.email)}">Remove</button>`}</li>`;
     }).join("");
     return `<div class="screen"><h1>Settings</h1>
-      <p class="hint">These only pre-fill the number on Dad's screen. He can always change it.</p>
-      <div class="field"><label for="set-name">Name on his screen</label><input class="input" id="set-name" type="text" maxlength="40" value="${esc(s.name)}"></div>
+      <p class="hint">These only pre-fill the number on the Home screen. It can always be changed before saving.</p>
+      <div class="field"><label for="set-name">Name shown on the Home screen</label><input class="input" id="set-name" type="text" maxlength="40" value="${esc(s.name)}"></div>
       <div class="row2">
         <div class="field"><label for="set-long">Long-acting (units)</label><input class="input" id="set-long" type="number" inputmode="numeric" min="0" max="100" value="${s.long_units}"></div>
         <div class="field"><label for="set-meal">Meal dose (units)</label><input class="input" id="set-meal" type="number" inputmode="numeric" min="0" max="100" value="${s.meal_units}"></div>
@@ -480,7 +480,7 @@
           <div class="field"><label for="m-name">Name</label><input class="input" id="m-name" type="text" maxlength="40" placeholder="e.g. Auntie Pat"></div>
           <div class="field"><label for="m-email">Email</label><input class="input" id="m-email" type="email" inputmode="email" required></div>
           <div class="field"><label for="m-role">Which screen they start on</label>
-            <select class="input" id="m-role"><option value="family">Family (sees the log)</option><option value="dad">Dad's phone (big buttons only)</option></select></div>
+            <select class="input" id="m-role"><option value="family">Family (sees the log)</option><option value="dad">Logs doses (big buttons only)</option></select></div>
           <button class="secondary" type="submit">Add to family list</button>
           <p class="hint" id="m-msg"></p>
         </form>
