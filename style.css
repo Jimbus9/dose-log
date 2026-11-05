@@ -132,4 +132,28 @@ select.input{appearance:auto}
 .appt-form{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
 .appt-form h2{margin:0;font-size:20px}
 .tabs a{font-size:15px}
+.glu{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.glu-now{display:flex;flex-direction:column;gap:2px}
+.glu-now .lab{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.glu-val{font-size:40px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.glu-val small{font-size:17px;font-weight:700;color:var(--muted)}
+.glu-val .arrow{font-size:34px}
+.glu-now .sub{font-size:15px;color:var(--muted)}
+.glu-low .glu-val,.glu-low .sub{color:var(--warn)}
+.glu-high .glu-val{color:var(--meal)}
+.glu-in .glu-val{color:var(--ok)}
+.glu-stale .glu-val{color:var(--muted)}
+.glu-err{margin:0;color:var(--warn);font-weight:700;font-size:15px}
+.glu-chart{overflow-x:auto}
+.glu-chart svg{display:block;width:100%;height:auto;min-width:300px}
+.g-band{fill:var(--ok-soft)}
+.g-grid{stroke:var(--line);stroke-width:1}
+.g-axis{fill:var(--muted);font-size:10px;font-family:var(--font)}
+.g-dose{fill:var(--ink);font-size:10px;font-weight:700;font-family:var(--font)}
+.g-mark{stroke-width:1;stroke-dasharray:2 3;opacity:.6}
+.g-line{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.g-end{fill:var(--ink)}
+.g-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.g-key i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.g-key i.band{border-radius:2px;background:var(--ok-soft);border:1px solid var(--ok)}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}

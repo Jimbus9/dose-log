@@ -7,7 +7,7 @@ A simple shared log of insulin doses and meals, kept by the person taking them a
 - **Appointments:** the family sees a month calendar and can add, edit and remove appointments. The Home screen shows the next one and a simple list.
 - **Safety:** tapping long-acting twice in a day shows a warning first. The app never suggests or calculates a dose.
 
-Glucose readings are not part of this app.
+Glucose readings can be pulled in from LibreLinkUp (optional, see below).
 
 ## How it works
 
@@ -27,3 +27,19 @@ Glucose readings are not part of this app.
 5. GitHub → **Settings → Pages** → deploy from branch `main`, folder `/ (root)`.
 
 Add everyone else from the app's **Settings → Family list**.
+
+## Optional: glucose from LibreLinkUp
+
+LibreLinkUp has no official API. This uses the same requests as the LibreLinkUp app,
+so it can break if Abbott changes them. If it does, the app shows the error and
+everything else keeps working.
+
+1. Make a separate LibreLinkUp account for this (not anyone's personal one), sign in to
+   the LibreLinkUp app with it once and accept the terms. In the Libre app, invite it
+   and accept the invite.
+2. SQL Editor → run `supabase/03-glucose.sql`.
+3. Edge Functions → deploy `supabase/functions/libre-sync/index.ts` as `libre-sync`,
+   with JWT verification turned off (it checks its own secret instead).
+4. Edge Functions → Secrets: `LIBRE_EMAIL`, `LIBRE_PASSWORD`, `SYNC_SECRET` (a long random string).
+5. SQL Editor → run `supabase/04-schedule.sql` with `PASTE_SYNC_SECRET` replaced by the same
+   random string. Don't commit the real value.
