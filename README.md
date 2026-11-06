@@ -18,7 +18,7 @@ Glucose readings can be pulled in from LibreLinkUp (optional, see below).
 
 ## Setup
 
-1. Supabase → **SQL Editor** → run `supabase/setup.sql`, then `supabase/02-appointments.sql` and `supabase/05-journal.sql`.
+1. Supabase → **SQL Editor** → run `supabase/setup.sql`, then `supabase/02-appointments.sql`, `supabase/05-journal.sql` and `supabase/08-home-phone-view.sql`.
 2. In the same editor, add the first family member:
    `insert into public.members (email, name, role) values ('you@example.com', 'Your name', 'family');`
 3. Supabase → **Authentication → Emails → Set up SMTP** (Gmail: `smtp.gmail.com`, port 587, an app password). Supabase only lets you edit templates once custom SMTP is on.

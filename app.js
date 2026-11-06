@@ -43,6 +43,10 @@
   const todays = k => S.entries.filter(e => dayKey(e.at) === today() && (!k || e.kind === k));
   const lastOf = k => S.entries.find(e => e.kind === k);
   const isDad = () => S.me?.role === "dad";
+  // The dose-logging phone can also look back at the log, calendar and journal
+  // (read-only), unless the family switches that off in Settings.
+  const dadSees = () => S.settings.dad_sees_records !== false;
+  const readOnly = () => isDad();
 
   function banner(msg){ const b = $("#banner"); b.hidden = !msg; b.textContent = msg || ""; }
   function errText(e){ return (e && (e.message || e.error_description)) || "Unknown error"; }
@@ -137,7 +141,7 @@
       return;
     }
     S.me = me;
-    $("#tabs").hidden = isDad();
+
     if (!["dad", "family", "calendar", "journal", "settings"].includes((location.hash || "").slice(1))) S.view = isDad() ? "dad" : "family";
     await Promise.all([loadEntries(), loadSettings(), loadMembers(), loadAppts(), loadGlucose(), loadNotes()]);
     S.loaded = true;
@@ -250,7 +254,7 @@
       </div>
       ${nextApptCard()}
       ${isDad() ? remindersCard() : ""}
-      ${isDad() ? `<a class="link" href="#family" style="align-self:center">See today's log</a>` : ""}
+
     </div>`;
   }
   function nextApptCard(){
@@ -348,7 +352,7 @@
     const overdue = !lt && Date.now() > due.getTime();
     const lm = lastOf("meal");
     let html = `<div class="screen">
-      ${isDad() ? `<a class="back" href="#dad">← Back to the buttons</a>` : ""}
+
       <h1>${esc(S.settings.name)} today</h1>
       <div class="status">
         ${overdue ? `<div class="flag">No long-acting dose logged yet. Usually taken by ${tm(due)}.</div>` : ""}
@@ -507,7 +511,7 @@
         <h3>${dayLabel(new Date(sel + "T12:00"))}</h3>
         ${list.length ? `<div class="entries">${list.map(apptRow).join("")}</div>` : `<p class="hint">Nothing on this day.</p>`}
       </section>
-      ${S.apptForm ? apptFormView() : `<button class="secondary" data-act="appt-new">+ Add appointment</button>`}
+      ${readOnly() ? "" : S.apptForm ? apptFormView() : `<button class="secondary" data-act="appt-new">+ Add appointment</button>`}
       ${up.length ? `<section class="day"><h3>Coming up</h3><div class="entries">${up.map(a => apptRow(a, true)).join("")}</div></section>` : ""}
     </div>`;
   }
@@ -518,8 +522,8 @@
       const notes = notesFor(a.id);
       const due = new Date(a.starts_at) <= new Date();
       const wu = notes.length ? `<button class="link strong" data-readnote="${notes[0].id}">Read write-up${notes.length > 1 ? "s (" + notes.length + ")" : ""}</button>`
-        : due ? `<button class="link strong" data-writeup="${a.id}">Write up</button>` : "";
-      acts = `${wu}<button class="link" data-editappt="${a.id}">Edit</button><button class="link" data-askappt="${a.id}">Remove</button>`;
+        : due && !readOnly() ? `<button class="link strong" data-writeup="${a.id}">Write up</button>` : "";
+      acts = readOnly() ? wu : `${wu}<button class="link" data-editappt="${a.id}">Edit</button><button class="link" data-askappt="${a.id}">Remove</button>`;
     }
     return `<div class="entry" style="--c:var(--long)"><time>${tm(a.starts_at)}</time><div class="body">
       <span class="kind">${esc(a.title)}</span>
@@ -568,8 +572,8 @@
       .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)).slice(0, 3);
     return `<div class="screen">
       <div><h1>Health journal</h1><p class="date">What was said at appointments, so everyone knows what's going on.</p></div>
-      ${S.noteForm ? noteFormView() : `<button class="primary dark" data-act="note-new">+ Write an entry</button>`}
-      ${!S.noteForm && waiting.length ? `<section class="day"><h3>Waiting for a write-up</h3><div class="entries">${waiting.map(a => `
+      ${readOnly() ? "" : S.noteForm ? noteFormView() : `<button class="primary dark" data-act="note-new">+ Write an entry</button>`}
+      ${!readOnly() && !S.noteForm && waiting.length ? `<section class="day"><h3>Waiting for a write-up</h3><div class="entries">${waiting.map(a => `
         <div class="entry" style="--c:var(--meal)"><time>${tm(a.starts_at)}</time><div class="body">
           <span class="kind">${esc(a.title)}</span><span class="food">${dayLabel(a.starts_at)}</span>
           <div class="acts"><button class="link strong" data-writeup="${a.id}">Write up</button></div></div></div>`).join("")}</div></section>` : ""}
@@ -582,7 +586,7 @@
     const sec = (label, text) => text ? `<div class="note-sec"><span class="lab">${label}</span><p>${esc(text)}</p></div>` : "";
     let acts;
     if (S.confirmNote === n.id) acts = `<span>Delete this entry?</span><button class="link danger" data-rmnote="${n.id}">Yes, delete</button><button class="link" data-act="cancel-note">Keep</button>`;
-    else acts = `<button class="link" data-editnote="${n.id}">Edit</button><button class="link" data-asknote="${n.id}">Delete</button>`;
+    else acts = readOnly() ? "" : `<button class="link" data-editnote="${n.id}">Edit</button><button class="link" data-asknote="${n.id}">Delete</button>`;
     return `<article class="note-card${S.focusNote === n.id ? " is-focus" : ""}" id="note-${n.id}">
       <header><span class="when">${dateLabel(n.happened_on)}</span><strong>${esc(a ? a.title : (n.title || "Note"))}</strong>
         ${n.written_by ? `<span class="by">Written by ${esc(memberName(n.written_by))}${n.updated_at && n.updated_at !== n.created_at ? " · edited" : ""}</span>` : ""}</header>
@@ -665,6 +669,11 @@
         <div class="field"><label for="set-meal">Meal dose (units)</label><input class="input" id="set-meal" type="number" inputmode="numeric" min="0" max="100" value="${s.meal_units}"></div>
       </div>
       <div class="field"><label for="set-by">Flag long-acting as missing after</label><input class="input" id="set-by" type="time" value="${esc(s.long_by)}"></div>
+      ${"dad_sees_records" in s ? `<div class="section">
+        <h2>Home-screen phone</h2>
+        <label class="check"><input type="checkbox" id="set-dad-sees"${s.dad_sees_records ? " checked" : ""}> Can look back at the log, calendar and journal</label>
+        <p class="hint">Read-only. Turn off to show only the big buttons.</p>
+      </div>` : ""}
       ${"remind_breakfast" in s ? `<div class="section">
         <h2>Reminders</h2>
         <p class="hint">Sent only to phones on the family list as "Logs doses", and only if nothing has been logged yet. Turn them on from the Home screen on that phone.</p>
@@ -701,11 +710,22 @@
 
   function render(){
     let html;
+    $("#tabs").hidden = !S.me || (isDad() && !dadSees());
+    $("#tab-settings").hidden = isDad();
+    for (const v of ["dad", "family", "calendar", "journal", "settings"]){
+      const el = $("#tab-" + v);
+      if (v === S.view) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
+    }
     if (!S.me) html = loginView();
+    else if (isDad() && S.view !== "dad" && (!dadSees() || S.view === "settings")){
+      // views this phone isn't allowed: back to the buttons
+      S.view = "dad"; if (location.hash && location.hash !== "#dad") history.replaceState(null, "", "#dad");
+      html = dadHome();
+    }
     else if (S.view === "family") html = family();
-    else if (S.view === "settings") html = isDad() ? family() : settings();
-    else if (S.view === "journal") html = isDad() ? family() : journal();
-    else if (S.view === "calendar") html = isDad() ? (S.view = "dad", S.step = "appts", dadAppts()) : calendar();
+    else if (S.view === "settings") html = settings();
+    else if (S.view === "journal") html = journal();
+    else if (S.view === "calendar") html = calendar();
     else html = ({home: dadHome, already: dadAlreadyLong, dose: dadDose, food: dadFood, tick: dadTick, appts: dadAppts})[S.step]();
     $("#view").innerHTML = html;
   }
@@ -797,6 +817,7 @@
   async function saveSettings(){
     const n = id => Math.max(0, Math.min(100, Math.round(+$(id).value || 0)));
     const s = {name: $("#set-name").value.trim() || "Dad", long_units: n("#set-long"), meal_units: n("#set-meal"), long_by: $("#set-by").value || "10:00"};
+    if ($("#set-dad-sees")) s.dad_sees_records = $("#set-dad-sees").checked;
     if ($("#set-rem-on")){
       const b = $("#set-rem-b").value, l = $("#set-rem-l").value, e = $("#set-rem-e").value;
       if (!(b < l && l < e)){ $("#set-msg").textContent = "Reminder times must go breakfast, then lunch, then evening meal."; return; }
