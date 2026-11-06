@@ -43,6 +43,8 @@
   const todays = k => S.entries.filter(e => dayKey(e.at) === today() && (!k || e.kind === k));
   const lastOf = k => S.entries.find(e => e.kind === k);
   const isDad = () => S.me?.role === "dad";
+  const isAdmin = () => S.me?.role === "admin";
+  const ROLE_LABEL = {admin: "Admin", family: "Family", dad: "Logs doses (Home screen)"};
   // The dose-logging phone can also look back at the log, calendar and journal
   // (read-only), unless the family switches that off in Settings.
   const dadSees = () => S.settings.dad_sees_records !== false;
@@ -653,13 +655,25 @@
   /* ---------- Settings ---------- */
   function settings(){
     const s = S.settings;
+    const signOutBlock = `<div class="section">
+        <p class="hint">Signed in as ${esc(S.me.email)} · ${ROLE_LABEL[S.me.role] || S.me.role}</p>
+        <button class="secondary" data-act="signout">Sign out</button>
+      </div>`;
+    if (!isAdmin()){
+      const admins = S.members.filter(m => m.role === "admin").map(m => esc(m.name || m.email.split("@")[0])).join(", ");
+      return `<div class="screen"><h1>Settings</h1>
+        <p class="hint">Only an admin${admins ? " (" + admins + ")" : ""} can change settings or the family list.</p>
+        ${signOutBlock}</div>`;
+    }
+    const roleOpts = sel => ["family", "dad", "admin"].map(r => `<option value="${r}"${r === sel ? " selected" : ""}>${ROLE_LABEL[r]}</option>`).join("");
     const people = S.members.map(m => {
       const self = m.email === S.me.email;
       const confirm = S.confirmMember === m.email;
-      return `<li><span class="who"><b>${esc(m.name || m.email.split("@")[0])}${self ? " (you)" : ""}</b>${esc(m.email)} · ${m.role === "dad" ? "Logs doses (Home screen only)" : "Family"}</span>
+      return `<li><span class="who"><b>${esc(m.name || m.email.split("@")[0])}${self ? " (you)" : ""}</b>${esc(m.email)}${self ? " · " + ROLE_LABEL[m.role] : ""}</span>
         ${self ? "" : confirm
           ? `<span><button class="link danger" data-rmmember="${esc(m.email)}">Remove</button> <button class="link" data-act="cancel-member">Keep</button></span>`
-          : `<button class="link" data-askmember="${esc(m.email)}">Remove</button>`}</li>`;
+          : `<span class="member-acts"><select class="role-sel" data-rolefor="${esc(m.email)}" aria-label="Role for ${esc(m.name || m.email)}">${roleOpts(m.role)}</select>
+             <button class="link" data-askmember="${esc(m.email)}">Remove</button></span>`}</li>`;
     }).join("");
     return `<div class="screen"><h1>Settings</h1>
       <p class="hint">These only pre-fill the number on the Home screen. It can always be changed before saving.</p>
@@ -695,16 +709,14 @@
         <form class="stack" id="member-form">
           <div class="field"><label for="m-name">Name</label><input class="input" id="m-name" type="text" maxlength="40" placeholder="e.g. Auntie Pat"></div>
           <div class="field"><label for="m-email">Email</label><input class="input" id="m-email" type="email" inputmode="email" required></div>
-          <div class="field"><label for="m-role">Which screen they start on</label>
-            <select class="input" id="m-role"><option value="family">Family (sees the log)</option><option value="dad">Logs doses (big buttons only)</option></select></div>
+          <div class="field"><label for="m-role">Role</label>
+            <select class="input" id="m-role">${roleOpts("family")}</select></div>
+          <p class="hint">Family: log, calendar and journal. Logs doses: the big buttons and reminders. Admin: everything, including settings and this list.</p>
           <button class="secondary" type="submit">Add to family list</button>
           <p class="hint" id="m-msg"></p>
         </form>
       </div>
-      <div class="section">
-        <p class="hint">Signed in as ${esc(S.me.email)}</p>
-        <button class="secondary" data-act="signout">Sign out</button>
-      </div>
+      ${signOutBlock}
     </div>`;
   }
 
@@ -839,6 +851,12 @@
     await loadMembers(); render();
     $("#m-msg").textContent = `Added. Send them the link to this page. They sign in with ${email}.`;
   }
+  async function changeRole(email, role){
+    const {data, error} = await sb.from("members").update({role}).eq("email", email).select();
+    if (error || !data?.length) banner(error ? "Couldn't change the role: " + errText(error) : "Couldn't change the role. Only an admin can do that.");
+    else banner("");
+    await loadMembers(); render();
+  }
   async function removeMember(email){
     S.confirmMember = null;
     const {error} = await sb.from("members").delete().eq("email", email);
@@ -954,6 +972,7 @@
     if (ev.target.id === "note-form") saveNote();
   });
   document.addEventListener("change", ev => {
+    if (ev.target.dataset && ev.target.dataset.rolefor) return changeRole(ev.target.dataset.rolefor, ev.target.value);
     if (ev.target.id === "n-appt" && ev.target.value){
       const a = S.appts.find(x => x.id === ev.target.value);
       if (a) $("#n-date").value = dayKey(a.starts_at);

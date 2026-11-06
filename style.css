@@ -171,4 +171,7 @@ textarea.input{font-size:18px;line-height:1.4;resize:vertical;min-height:96px}
 .rem-on{margin:0;text-align:center;color:var(--ok);font-weight:700;font-size:16px}
 .check{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
 .check input{width:24px;height:24px}
+.member-acts{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.role-sel{min-height:40px;max-width:150px;padding:4px 6px;border-radius:8px;border:2px solid var(--line);background:var(--bg);font-size:15px}
+.people li{flex-wrap:wrap}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}
