@@ -20,6 +20,7 @@
     loaded: false, draft: null, last: null, undoTimer: null, saving: false,
     editCarbs: null, confirmDel: null, confirmMember: null, photoUrls: {}, channel: null,
     appts: [], calMonth: null, calDay: null, apptForm: null, confirmAppt: null,
+    notes: [], noteForm: null, confirmNote: null, focusNote: null,
     glucose: [], libreStatus: null
   };
 
@@ -61,9 +62,9 @@
   /* ---------- Routing ---------- */
   function route(){
     const h = (location.hash || "").slice(1);
-    if (["dad", "family", "calendar", "settings"].includes(h)) S.view = h;
+    if (["dad", "family", "calendar", "journal", "settings"].includes(h)) S.view = h;
     if (S.view !== "dad") S.step = "home";
-    for (const v of ["dad", "family", "calendar", "settings"]){
+    for (const v of ["dad", "family", "calendar", "journal", "settings"]){
       const el = $("#tab-" + v);
       if (v === S.view) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
     }
@@ -137,8 +138,8 @@
     }
     S.me = me;
     $("#tabs").hidden = isDad();
-    if (!["dad", "family", "calendar", "settings"].includes((location.hash || "").slice(1))) S.view = isDad() ? "dad" : "family";
-    await Promise.all([loadEntries(), loadSettings(), loadMembers(), loadAppts(), loadGlucose()]);
+    if (!["dad", "family", "calendar", "journal", "settings"].includes((location.hash || "").slice(1))) S.view = isDad() ? "dad" : "family";
+    await Promise.all([loadEntries(), loadSettings(), loadMembers(), loadAppts(), loadGlucose(), loadNotes()]);
     S.loaded = true;
     subscribe();
     route();
@@ -176,6 +177,10 @@
     clearTimeout(glucoseT);
     glucoseT = setTimeout(async () => { await loadGlucose(); softRender(); }, 500);
   }
+  async function loadNotes(){
+    const {data, error} = await sb.from("journal").select("*").order("happened_on", {ascending: false}).limit(300);
+    if (!error && data) S.notes = data.slice().sort((x, y) => (y.happened_on || "").localeCompare(x.happened_on || "") || new Date(y.created_at) - new Date(x.created_at));
+  }
   async function loadAppts(){
     const since = new Date(Date.now() - 120 * 864e5).toISOString();
     const {data, error} = await sb.from("appointments").select("*").gte("starts_at", since).order("starts_at").limit(500);
@@ -202,6 +207,7 @@
       .on("postgres_changes", {event: "*", schema: "public", table: "entries"}, scheduleReload)
       .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, async () => { await loadSettings(); softRender(); })
       .on("postgres_changes", {event: "*", schema: "public", table: "appointments"}, async () => { await loadAppts(); softRender(); })
+      .on("postgres_changes", {event: "*", schema: "public", table: "journal"}, async () => { await loadNotes(); softRender(); })
       .on("postgres_changes", {event: "*", schema: "public", table: "glucose"}, scheduleGlucose)
       .on("postgres_changes", {event: "*", schema: "public", table: "libre_status"}, scheduleGlucose)
       .subscribe();
@@ -216,6 +222,7 @@
     if (S.view === "family" && !S.editCarbs && !S.confirmDel) return render();
     if (S.view === "dad" && (S.step === "home" || S.step === "appts")) return render();
     if (S.view === "calendar" && !S.apptForm && !S.confirmAppt) return render();
+    if (S.view === "journal" && !S.noteForm && !S.confirmNote) return render();
   }
 
   /* ---------- Dad ---------- */
@@ -501,7 +508,13 @@
   function apptRow(a, withDay){
     let acts;
     if (S.confirmAppt === a.id) acts = `<span>Remove this appointment?</span><button class="link danger" data-rmappt="${a.id}">Yes, remove</button><button class="link" data-act="cancel-appt">Keep</button>`;
-    else acts = `<button class="link" data-editappt="${a.id}">Edit</button><button class="link" data-askappt="${a.id}">Remove</button>`;
+    else {
+      const notes = notesFor(a.id);
+      const due = new Date(a.starts_at) <= new Date();
+      const wu = notes.length ? `<button class="link strong" data-readnote="${notes[0].id}">Read write-up${notes.length > 1 ? "s (" + notes.length + ")" : ""}</button>`
+        : due ? `<button class="link strong" data-writeup="${a.id}">Write up</button>` : "";
+      acts = `${wu}<button class="link" data-editappt="${a.id}">Edit</button><button class="link" data-askappt="${a.id}">Remove</button>`;
+    }
     return `<div class="entry" style="--c:var(--long)"><time>${tm(a.starts_at)}</time><div class="body">
       <span class="kind">${esc(a.title)}</span>
       ${withDay ? `<span class="food">${dayLabel(a.starts_at)}</span>` : ""}
@@ -538,6 +551,93 @@
       ? "The appointments table isn't set up yet. Run supabase/02-appointments.sql in Supabase." : "Couldn't save: " + errText(error); return; }
     S.apptForm = null; S.calDay = date;
     await loadAppts(); render();
+  }
+
+  /* ---------- Health journal ---------- */
+  const notesFor = apptId => S.notes.filter(n => n.appointment_id === apptId);
+  const dateLabel = d => new Date(d + "T12:00").toLocaleDateString("en-GB", {weekday: "short", day: "numeric", month: "short", year: "numeric"});
+  function journal(){
+    if (!S.loaded) return `<div class="empty">Loading…</div>`;
+    const waiting = S.appts.filter(a => new Date(a.starts_at) <= new Date() && !notesFor(a.id).length)
+      .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)).slice(0, 3);
+    return `<div class="screen">
+      <div><h1>Health journal</h1><p class="date">What was said at appointments, so everyone knows what's going on.</p></div>
+      ${S.noteForm ? noteFormView() : `<button class="primary dark" data-act="note-new">+ Write an entry</button>`}
+      ${!S.noteForm && waiting.length ? `<section class="day"><h3>Waiting for a write-up</h3><div class="entries">${waiting.map(a => `
+        <div class="entry" style="--c:var(--meal)"><time>${tm(a.starts_at)}</time><div class="body">
+          <span class="kind">${esc(a.title)}</span><span class="food">${dayLabel(a.starts_at)}</span>
+          <div class="acts"><button class="link strong" data-writeup="${a.id}">Write up</button></div></div></div>`).join("")}</div></section>` : ""}
+      ${S.notes.length ? `<div class="stack">${S.notes.map(noteCard).join("")}</div>`
+        : `<div class="empty">No entries yet. After an appointment, whoever went writes what was said, any changes, and what happens next.</div>`}
+    </div>`;
+  }
+  function noteCard(n){
+    const a = n.appointment_id && S.appts.find(x => x.id === n.appointment_id);
+    const sec = (label, text) => text ? `<div class="note-sec"><span class="lab">${label}</span><p>${esc(text)}</p></div>` : "";
+    let acts;
+    if (S.confirmNote === n.id) acts = `<span>Delete this entry?</span><button class="link danger" data-rmnote="${n.id}">Yes, delete</button><button class="link" data-act="cancel-note">Keep</button>`;
+    else acts = `<button class="link" data-editnote="${n.id}">Edit</button><button class="link" data-asknote="${n.id}">Delete</button>`;
+    return `<article class="note-card${S.focusNote === n.id ? " is-focus" : ""}" id="note-${n.id}">
+      <header><span class="when">${dateLabel(n.happened_on)}</span><strong>${esc(a ? a.title : (n.title || "Note"))}</strong>
+        ${n.written_by ? `<span class="by">Written by ${esc(memberName(n.written_by))}${n.updated_at && n.updated_at !== n.created_at ? " · edited" : ""}</span>` : ""}</header>
+      ${sec("What was said", n.summary)}${sec("Changes", n.changes)}${sec("Next steps", n.next_steps)}
+      <div class="acts">${acts}</div>
+    </article>`;
+  }
+  function noteFormView(){
+    const f = S.noteForm;
+    const recent = S.appts.filter(a => new Date(a.starts_at) <= new Date(Date.now() + 864e5))
+      .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)).slice(0, 15);
+    if (f.appointment_id && !recent.some(a => a.id === f.appointment_id)){
+      const a = S.appts.find(x => x.id === f.appointment_id); if (a) recent.unshift(a);
+    }
+    const opts = recent.map(a => `<option value="${a.id}"${a.id === f.appointment_id ? " selected" : ""}>${esc(a.title)} (${dayKey(a.starts_at).split("-").reverse().join("/")})</option>`).join("");
+    const ta = (id, label, val, ph, req) => `<div class="field"><label for="${id}">${label}</label><textarea class="input" id="${id}" rows="4" maxlength="4000" placeholder="${ph}"${req ? " required" : ""}>${esc(val || "")}</textarea></div>`;
+    return `<form class="stack appt-form" id="note-form">
+      <h2>${f.id ? "Edit entry" : "New journal entry"}</h2>
+      <div class="field"><label for="n-appt">Which appointment?</label>
+        <select class="input" id="n-appt"><option value="">Not about an appointment</option>${opts}</select></div>
+      <div class="row2">
+        <div class="field"><label for="n-date">Date</label><input class="input" id="n-date" type="date" required value="${esc(f.happened_on || today())}"></div>
+        <div class="field"><label for="n-title">Title (if not an appointment)</label><input class="input" id="n-title" type="text" maxlength="120" value="${esc(f.title || "")}" placeholder="e.g. Phone call with GP"></div>
+      </div>
+      ${ta("n-summary", "What was said", f.summary, "e.g. HbA1c down to 58. Nurse happy with the long-acting dose.", true)}
+      ${ta("n-changes", "Any changes (doses, medicines, diet)", f.changes, "e.g. Mealtime insulin up from 6 to 7 units. Leave blank if none.")}
+      ${ta("n-next", "Next steps", f.next_steps, "e.g. Blood test in 3 months. Book eye screening.")}
+      <p class="err" id="n-err" hidden></p>
+      <button class="primary dark" type="submit">${f.id ? "Save changes" : "Save entry"}</button>
+      <button class="link" type="button" data-act="note-cancel">Cancel</button>
+    </form>`;
+  }
+  function openNoteForm(init){
+    S.noteForm = init; S.confirmNote = null;
+    if (S.view !== "journal") location.hash = "#journal"; else render();
+    setTimeout(() => { $("#note-form")?.scrollIntoView({block: "start"}); $("#n-summary")?.focus({preventScroll: true}); }, 50);
+  }
+  async function saveNote(){
+    const err = $("#n-err");
+    const appointment_id = $("#n-appt").value || null;
+    const row = {
+      appointment_id,
+      happened_on: $("#n-date").value,
+      title: $("#n-title").value.trim() || null,
+      summary: $("#n-summary").value.trim(),
+      changes: $("#n-changes").value.trim() || null,
+      next_steps: $("#n-next").value.trim() || null
+    };
+    if (!row.summary || !row.happened_on){ err.hidden = false; err.textContent = "Add the date and what was said."; return; }
+    const id = S.noteForm.id;
+    const q = id ? sb.from("journal").update({...row, updated_at: new Date().toISOString()}).eq("id", id) : sb.from("journal").insert(row).select().single();
+    const {data, error} = await q;
+    if (error){
+      err.hidden = false;
+      err.textContent = /journal/.test(error.message || "") && /exist|schema cache/.test(error.message || "")
+        ? "The journal isn't set up yet. Run supabase/05-journal.sql in Supabase." : "Couldn't save: " + errText(error);
+      return;
+    }
+    S.noteForm = null; S.focusNote = id || data?.id || null;
+    await loadNotes(); render();
+    if (S.focusNote) setTimeout(() => $("#note-" + S.focusNote)?.scrollIntoView({block: "center"}), 50);
   }
 
   /* ---------- Settings ---------- */
@@ -587,6 +687,7 @@
     if (!S.me) html = loginView();
     else if (S.view === "family") html = family();
     else if (S.view === "settings") html = isDad() ? family() : settings();
+    else if (S.view === "journal") html = isDad() ? family() : journal();
     else if (S.view === "calendar") html = isDad() ? (S.view = "dad", S.step = "appts", dadAppts()) : calendar();
     else html = ({home: dadHome, already: dadAlreadyLong, dose: dadDose, food: dadFood, tick: dadTick, appts: dadAppts})[S.step]();
     $("#view").innerHTML = html;
@@ -746,6 +847,28 @@
       if (error){ banner("Couldn't remove the appointment."); await loadAppts(); render(); }
       return;
     }
+    if (t.dataset.writeup){
+      const a = S.appts.find(x => x.id === t.dataset.writeup);
+      return openNoteForm({appointment_id: a?.id || null, happened_on: a ? dayKey(a.starts_at) : today()});
+    }
+    if (t.dataset.readnote){
+      S.focusNote = t.dataset.readnote; S.noteForm = null;
+      if (S.view !== "journal") location.hash = "#journal"; else render();
+      setTimeout(() => $("#note-" + S.focusNote)?.scrollIntoView({block: "center"}), 80);
+      return;
+    }
+    if (t.dataset.editnote){
+      const n = S.notes.find(x => x.id === t.dataset.editnote); if (!n) return;
+      return openNoteForm({...n});
+    }
+    if (t.dataset.asknote){ S.confirmNote = t.dataset.asknote; return render(); }
+    if (t.dataset.rmnote){
+      const id = t.dataset.rmnote; S.confirmNote = null;
+      S.notes = S.notes.filter(n => n.id !== id); render();
+      const {error} = await sb.from("journal").delete().eq("id", id);
+      if (error){ banner("Couldn't delete the entry."); await loadNotes(); render(); }
+      return;
+    }
     if (t.dataset.askmember){ S.confirmMember = t.dataset.askmember; return render(); }
     if (t.dataset.rmmember) return removeMember(t.dataset.rmmember);
     switch (a){
@@ -770,6 +893,9 @@
       case "appt-new": S.apptForm = {date: S.calDay || today(), time: "09:00"}; render(); $("#a-title")?.focus(); break;
       case "appt-cancel": S.apptForm = null; render(); break;
       case "cancel-appt": S.confirmAppt = null; render(); break;
+      case "note-new": openNoteForm({happened_on: today()}); break;
+      case "note-cancel": S.noteForm = null; render(); break;
+      case "cancel-note": S.confirmNote = null; render(); break;
       case "signout": signOut(); break;
       case "resend": { const em = store.get("doselog.pendingEmail"); S.auth = "email"; render(); if (em) sendCode(em); break; }
       case "other-email": store.set("doselog.pendingEmail", null); S.auth = "email"; render(); break;
@@ -781,8 +907,15 @@
     if (ev.target.id === "code-form") verifyCode();
     if (ev.target.id === "member-form") addMember();
     if (ev.target.id === "appt-form") saveAppt();
+    if (ev.target.id === "note-form") saveNote();
   });
-  document.addEventListener("change", ev => { if (ev.target.id === "photo-in") onPhoto(ev.target.files[0]); });
+  document.addEventListener("change", ev => {
+    if (ev.target.id === "n-appt" && ev.target.value){
+      const a = S.appts.find(x => x.id === ev.target.value);
+      if (a) $("#n-date").value = dayKey(a.starts_at);
+    }
+    if (ev.target.id === "photo-in") onPhoto(ev.target.files[0]);
+  });
 
   /* ---------- Start ---------- */
   if (store.get("doselog.pendingEmail")) S.auth = "code";

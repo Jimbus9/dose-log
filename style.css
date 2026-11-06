@@ -156,4 +156,16 @@ select.input{appearance:auto}
 .g-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
 .g-key i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 .g-key i.band{border-radius:2px;background:var(--ok-soft);border:1px solid var(--ok)}
+.tabs a.tab-icon{flex:0 0 44px;display:grid;place-items:center;padding:6px 0}
+textarea.input{font-size:18px;line-height:1.4;resize:vertical;min-height:96px}
+.link.strong{color:var(--ink);font-weight:700}
+.note-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.note-card.is-focus{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.note-card header{display:flex;flex-direction:column;gap:2px}
+.note-card .when{font-size:14px;font-weight:700;color:var(--long)}
+.note-card strong{font-size:20px;line-height:1.25}
+.note-card .by{font-size:14px;color:var(--muted)}
+.note-sec .lab{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
+.note-sec p{margin:2px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.note-card .acts{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}

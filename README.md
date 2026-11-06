@@ -5,6 +5,7 @@ A simple shared log of insulin doses and meals, kept by the person taking them a
 - **Home screen:** three big buttons: long-acting insulin, meal + insulin, snack. Food can be logged as a photo, a few words, or carbs.
 - **Family screen:** today's status, a flag if long-acting hasn't been logged by a set time, and a timeline of every dose, meal and snack.
 - **Appointments:** the family sees a month calendar and can add, edit and remove appointments. The Home screen shows the next one and a simple list.
+- **Health journal:** after an appointment, whoever went writes what was said, any changes and next steps, so everyone stays up to date.
 - **Safety:** tapping long-acting twice in a day shows a warning first. The app never suggests or calculates a dose.
 
 Glucose readings can be pulled in from LibreLinkUp (optional, see below).
@@ -17,7 +18,7 @@ Glucose readings can be pulled in from LibreLinkUp (optional, see below).
 
 ## Setup
 
-1. Supabase → **SQL Editor** → run `supabase/setup.sql`, then `supabase/02-appointments.sql`.
+1. Supabase → **SQL Editor** → run `supabase/setup.sql`, then `supabase/02-appointments.sql` and `supabase/05-journal.sql`.
 2. In the same editor, add the first family member:
    `insert into public.members (email, name, role) values ('you@example.com', 'Your name', 'family');`
 3. Supabase → **Authentication → Emails → Set up SMTP** (Gmail: `smtp.gmail.com`, port 587, an app password). Supabase only lets you edit templates once custom SMTP is on.
