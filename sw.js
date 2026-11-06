@@ -13,13 +13,13 @@ self.addEventListener("push", event => {
     icon: "icons/icon-192.png",
     tag: data.tag || "dose-log",
     renotify: true,
-    data: {url: data.url || "./#dad"}
+    data: {url: data.url || "./#home"}
   }));
 });
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const url = new URL((event.notification.data && event.notification.data.url) || "./#dad", self.registration.scope).href;
+  const url = new URL((event.notification.data && event.notification.data.url) || "./#home", self.registration.scope).href;
   event.waitUntil(self.clients.matchAll({type: "window", includeUncontrolled: true}).then(wins => {
     for (const w of wins){
       if (w.url.startsWith(self.registration.scope)){
