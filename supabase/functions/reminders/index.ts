@@ -5,11 +5,12 @@
 //   breakfast / lunch / evening: no "Meal + insulin" entry since the previous
 //     reminder time  -> reminder
 //   long-acting: no long-acting entry today -> reminder
-// Notifications go only to phones of family-list members with the "dad"
-// (Logs doses) role. Each reminder is sent at most once a day.
+// Notifications go only to phones of family-list members with the "Logs doses"
+// role (stored as "dad" in members.role, see js/state.js). Each reminder is sent at most once a day.
 //
 // Secrets: SYNC_SECRET (shared with libre-sync), VAPID_PUBLIC_KEY,
-// VAPID_PRIVATE_KEY, optional VAPID_SUBJECT (mailto: address).
+// VAPID_PRIVATE_KEY, and VAPID_SUBJECT (a mailto: address of yours; push services
+// use it to contact you if something is wrong).
 //
 // Test: POST with {"force": "breakfast"} (or lunch / evening / long) sends
 // that reminder straight away, skipping the time and log checks.
@@ -23,7 +24,8 @@ const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SYNC_SECRET = Deno.env.get("SYNC_SECRET") ?? "";
 const VAPID_PUBLIC = Deno.env.get("VAPID_PUBLIC_KEY") ?? "";
 const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
-const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:dadsdoselog@gmail.com";
+const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:admin@example.com";
+if (!Deno.env.get("VAPID_SUBJECT")) console.warn("VAPID_SUBJECT secret is not set; set it to a mailto: address of yours.");
 const TZ = "Europe/London";
 const SEND_WINDOW_MIN = 30;   // send any time within 30 min after the reminder time
 
@@ -67,9 +69,9 @@ async function loggedSince(kind: "meal" | "long", since: Date) {
 }
 
 async function sendToDosePhones(payload: Record<string, string>) {
-  const { data: dads, error: e1 } = await db.from("members").select("email").eq("role", "dad");
+  const { data: loggers, error: e1 } = await db.from("members").select("email").eq("role", "dad");
   if (e1) throw new Error("Reading the family list failed: " + e1.message);
-  const emails = new Set((dads ?? []).map((r) => r.email));
+  const emails = new Set((loggers ?? []).map((r) => r.email));
   const { data: subs, error: e2 } = await db.from("push_subscriptions").select("*");
   if (e2) throw new Error("Reading phones failed: " + e2.message);
 
@@ -115,7 +117,7 @@ async function run(force?: Kind) {
         .upsert({ day, kind: r.kind }, { onConflict: "day,kind", ignoreDuplicates: true }).select();
       if (!claimed || !claimed.length) { results[r.kind] = "already sent"; continue; }
     }
-    const n = await sendToDosePhones({ title: r.title, body: r.body, tag: "reminder-" + r.kind, url: "./#dad" });
+    const n = await sendToDosePhones({ title: r.title, body: r.body, tag: "reminder-" + r.kind, url: "./#home" });
     results[r.kind] = `sent to ${n} phone${n === 1 ? "" : "s"}`;
   }
   return results;

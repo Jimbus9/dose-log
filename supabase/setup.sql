@@ -10,7 +10,7 @@
 create table if not exists public.members (
   email      text primary key check (email = lower(email)),
   name       text not null default '',
-  role       text not null default 'family' check (role in ('dad', 'family')),
+  role       text not null default 'family' check (role in ('dad', 'family')),   -- 'dad' = the "Logs doses" phone (name kept for historical reasons)
   added_at   timestamptz not null default now()
 );
 
@@ -34,7 +34,7 @@ create index if not exists entries_at_idx on public.entries (at desc);
 
 create table if not exists public.settings (
   id          integer primary key default 1 check (id = 1),
-  name        text not null default 'Dad',
+  name        text not null default '',
   long_units  numeric not null default 20 check (long_units between 0 and 100),
   meal_units  numeric not null default 6  check (meal_units between 0 and 100),
   long_by     time not null default '10:00'

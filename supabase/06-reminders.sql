@@ -1,6 +1,6 @@
 -- Dose Log: reminder notifications
 -- Run in Supabase > SQL Editor (after setup.sql). Safe to run again.
--- Reminders go only to phones signed in with the "Logs doses" (dad) role.
+-- Reminders go only to phones signed in with the "Logs doses" role (stored as 'dad').
 
 alter table public.settings
   add column if not exists reminders_on     boolean not null default true,
