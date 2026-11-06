@@ -44,3 +44,17 @@ everything else keeps working.
 4. Edge Functions → Secrets: `LIBRE_EMAIL`, `LIBRE_PASSWORD`, `SYNC_SECRET` (a long random string).
 5. SQL Editor → run `supabase/04-schedule.sql` with `PASTE_SYNC_SECRET` replaced by the same
    random string. Don't commit the real value.
+
+## Optional: reminder notifications
+
+Sent only to phones whose family-list role is "Logs doses", and only when nothing
+has been logged yet (breakfast, lunch, evening meal: no meal + insulin entry since
+the previous reminder time; long-acting: none today). Times are set in Settings.
+
+1. SQL Editor → run `supabase/06-reminders.sql`.
+2. Edge Functions → deploy `supabase/functions/reminders/index.ts` as `reminders`, JWT verification off.
+3. Edge Functions → Secrets: `VAPID_PUBLIC_KEY` (same as `vapidPublicKey` in `config.js`) and
+   `VAPID_PRIVATE_KEY`. Generate a pair with `npx web-push generate-vapid-keys`.
+   It also uses `SYNC_SECRET`.
+4. SQL Editor → run `supabase/07-schedule-reminders.sql` with `PASTE_SYNC_SECRET` replaced.
+5. On the dose-logging phone, open the app installed from Chrome and tap **Turn on reminders**.

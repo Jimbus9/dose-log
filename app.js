@@ -155,7 +155,12 @@
   }
   async function loadSettings(){
     const {data} = await sb.from("settings").select("*").eq("id", 1).maybeSingle();
-    if (data) S.settings = {...DEFAULTS, ...data, long_by: String(data.long_by || DEFAULTS.long_by).slice(0, 5)};
+    if (data){
+      const hm = v => v ? String(v).slice(0, 5) : v;
+      S.settings = {...DEFAULTS, ...data, long_by: hm(data.long_by || DEFAULTS.long_by),
+        remind_breakfast: hm(data.remind_breakfast), remind_lunch: hm(data.remind_lunch),
+        remind_evening: hm(data.remind_evening), remind_long: hm(data.remind_long)};
+    }
   }
   async function loadMembers(){
     const {data} = await sb.from("members").select("*").order("added_at");
@@ -244,6 +249,7 @@
         </button>
       </div>
       ${nextApptCard()}
+      ${isDad() ? remindersCard() : ""}
       ${isDad() ? `<a class="link" href="#family" style="align-self:center">See today's log</a>` : ""}
     </div>`;
   }
@@ -659,6 +665,17 @@
         <div class="field"><label for="set-meal">Meal dose (units)</label><input class="input" id="set-meal" type="number" inputmode="numeric" min="0" max="100" value="${s.meal_units}"></div>
       </div>
       <div class="field"><label for="set-by">Flag long-acting as missing after</label><input class="input" id="set-by" type="time" value="${esc(s.long_by)}"></div>
+      ${"remind_breakfast" in s ? `<div class="section">
+        <h2>Reminders</h2>
+        <p class="hint">Sent only to phones on the family list as "Logs doses", and only if nothing has been logged yet. Turn them on from the Home screen on that phone.</p>
+        <label class="check"><input type="checkbox" id="set-rem-on"${s.reminders_on ? " checked" : ""}> Send reminders</label>
+        <div class="row2">
+          <div class="field"><label for="set-rem-b">Breakfast</label><input class="input" id="set-rem-b" type="time" value="${esc(s.remind_breakfast)}"></div>
+          <div class="field"><label for="set-rem-l">Lunch</label><input class="input" id="set-rem-l" type="time" value="${esc(s.remind_lunch)}"></div>
+          <div class="field"><label for="set-rem-e">Evening meal</label><input class="input" id="set-rem-e" type="time" value="${esc(s.remind_evening)}"></div>
+          <div class="field"><label for="set-rem-long">Long-acting</label><input class="input" id="set-rem-long" type="time" value="${esc(s.remind_long)}"></div>
+        </div>
+      </div>` : ""}
       <button class="primary dark" data-act="save-settings">Save settings</button>
       <p class="hint" id="set-msg"></p>
 
@@ -780,6 +797,11 @@
   async function saveSettings(){
     const n = id => Math.max(0, Math.min(100, Math.round(+$(id).value || 0)));
     const s = {name: $("#set-name").value.trim() || "Dad", long_units: n("#set-long"), meal_units: n("#set-meal"), long_by: $("#set-by").value || "10:00"};
+    if ($("#set-rem-on")){
+      const b = $("#set-rem-b").value, l = $("#set-rem-l").value, e = $("#set-rem-e").value;
+      if (!(b < l && l < e)){ $("#set-msg").textContent = "Reminder times must go breakfast, then lunch, then evening meal."; return; }
+      Object.assign(s, {reminders_on: $("#set-rem-on").checked, remind_breakfast: b, remind_lunch: l, remind_evening: e, remind_long: $("#set-rem-long").value || "20:00"});
+    }
     const msg = $("#set-msg");
     const {error} = await sb.from("settings").update(s).eq("id", 1);
     if (error){ msg.textContent = "Couldn't save: " + errText(error); return; }
@@ -894,6 +916,7 @@
       case "appt-cancel": S.apptForm = null; render(); break;
       case "cancel-appt": S.confirmAppt = null; render(); break;
       case "note-new": openNoteForm({happened_on: today()}); break;
+      case "push-on": enablePush(); break;
       case "note-cancel": S.noteForm = null; render(); break;
       case "cancel-note": S.confirmNote = null; render(); break;
       case "signout": signOut(); break;
@@ -916,6 +939,57 @@
     }
     if (ev.target.id === "photo-in") onPhoto(ev.target.files[0]);
   });
+
+  /* ---------- Reminders (push notifications) ---------- */
+  const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && !!CFG.vapidPublicKey;
+  S.push = pushSupported() ? "checking" : "unsupported";
+  let swReg = null;
+  if ("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js").then(async reg => {
+      swReg = reg;
+      if (!pushSupported()) return;
+      const sub = await reg.pushManager.getSubscription();
+      S.push = Notification.permission === "denied" ? "denied" : sub ? "on" : "off";
+      softRender();
+    }).catch(() => { S.push = "unsupported"; softRender(); });
+  }
+  function urlB64ToUint8(b64){
+    const pad = "=".repeat((4 - b64.length % 4) % 4);
+    const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from(raw, c => c.charCodeAt(0));
+  }
+  function remindersCard(){
+    const st = S.settings;
+    if (!("remind_breakfast" in st) || S.push === "checking") return "";
+    if (S.push === "unsupported") return `<p class="hint" style="text-align:center">Reminders need this app installed from Chrome.</p>`;
+    if (S.push === "on") return `<p class="rem-on">🔔 Reminders are on for this phone</p>`;
+    if (S.push === "denied") return `<div class="appt-next"><strong>Reminders are blocked</strong>
+      <span class="muted">Notifications were turned off for this app. Turn them on in the phone's Settings → Apps → Dose Log → Notifications, then come back here.</span></div>`;
+    return `<section class="appt-next">
+      <span class="lab">Reminders</span>
+      <strong>Get a nudge if you forget to log</strong>
+      <span class="muted">Breakfast ${tm("2000-01-01T" + st.remind_breakfast)}, lunch ${tm("2000-01-01T" + st.remind_lunch)}, evening meal ${tm("2000-01-01T" + st.remind_evening)}, long-acting ${tm("2000-01-01T" + st.remind_long)}. Only if nothing's logged yet.</span>
+      <button class="primary" style="--c:var(--long)" data-act="push-on" ${S.push === "busy" ? "disabled" : ""}>${S.push === "busy" ? "Turning on…" : "Turn on reminders"}</button>
+    </section>`;
+  }
+  async function enablePush(){
+    S.push = "busy"; render();
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted"){ S.push = perm === "denied" ? "denied" : "off"; return render(); }
+      const reg = swReg || await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) ||
+        await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: urlB64ToUint8(CFG.vapidPublicKey)});
+      const j = sub.toJSON();
+      const {error} = await sb.from("push_subscriptions").upsert({endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth});
+      if (error) throw error;
+      S.push = "on"; render();
+      reg.showNotification("Reminders are on", {body: "You'll get a nudge here if a meal or dose hasn't been logged.", icon: "icons/icon-192.png", tag: "dose-log-test"});
+    } catch(e){
+      S.push = "off"; render();
+      banner("Couldn't turn on reminders: " + errText(e));
+    }
+  }
 
   /* ---------- Start ---------- */
   if (store.get("doselog.pendingEmail")) S.auth = "code";

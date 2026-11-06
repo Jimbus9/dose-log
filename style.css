@@ -168,4 +168,7 @@ textarea.input{font-size:18px;line-height:1.4;resize:vertical;min-height:96px}
 .note-sec .lab{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
 .note-sec p{margin:2px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .note-card .acts{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.rem-on{margin:0;text-align:center;color:var(--ok);font-weight:700;font-size:16px}
+.check{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+.check input{width:24px;height:24px}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}
