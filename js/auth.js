@@ -23,7 +23,11 @@ export async function sendCode(email){
   if (error){
     if (btn){ btn.disabled = false; btn.textContent = "Email me a code"; }
     const rateLimited = error.status === 429 || /rate|security purposes/i.test(error.message || "");
-    showAuthError(rateLimited ? "Too many emails sent for now. Wait a while, then try again." : "Couldn't send the email: " + errText(error));
+    // Supabase reports the sign-up block (supabase/10-block-signups.sql) as a generic database error
+    const notListed = /database error saving new user|not on the family list/i.test(error.message || "");
+    showAuthError(rateLimited ? "Too many emails sent for now. Wait a while, then try again."
+      : notListed ? "That email isn't on the family list. Ask the person who runs Dose Log to add it, then try again."
+      : "Couldn't send the email: " + errText(error));
     return false;
   }
   store.set("doselog.pendingEmail", email);

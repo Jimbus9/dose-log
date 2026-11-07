@@ -33,6 +33,7 @@ You need a GitHub account, a Supabase account, and an email account that can sen
    ```sql
    insert into public.members (email, name, role) values ('you@example.com', 'Your name', 'admin');
    ```
+   Then run `supabase/10-block-signups.sql`. From then on only people on the family list can create an account, so add each person to the family list before they first sign in.
 5. **Set up sign-in emails.** Supabase → **Authentication → Emails → Set up SMTP** (Gmail: `smtp.gmail.com`, port 587, an [app password](https://myaccount.google.com/apppasswords)). Supabase only lets you edit email templates once custom SMTP is on. Then, in both **Confirm sign up** and **Magic Link**, make the message body show the code:
    ```html
    <h2>Your Dose Log code</h2><p>Type this into Dose Log:</p><h1>{{ .Token }}</h1>
@@ -67,7 +68,7 @@ Sent only to phones whose family-list role is "Logs doses", and only when nothin
 
 - This is health information. You are responsible for the Supabase project you create: use a strong password, turn on two-factor sign-in for your Supabase and GitHub accounts, and only add people who should see it.
 - Photos are stored in a private bucket and shown through short-lived links.
-- Anyone who finds your site's address can ask it to email them a sign-in code. They still can't see anything unless their email is on the family list, but they can use up your email sending allowance.
+- With `10-block-signups.sql` run, an email that isn't on the family list can't create an account or get a code, so add people to the family list before they first sign in. Without it, anyone who finds your site can have a code emailed to them (they still see nothing, but they use up your sending allowance).
 - This is built for one household per install. Running it as a service for other people's health data is a different matter (in the UK, for example, that brings UK GDPR obligations) and is not what this repository sets up.
 
 ## Limitations
