@@ -12,8 +12,13 @@
 // VAPID_PRIVATE_KEY, and VAPID_SUBJECT (a mailto: address of yours; push services
 // use it to contact you if something is wrong).
 //
+// It also sends dose alerts: when the dose-logging phone logs a long-acting or
+// meal dose, every admin phone that has turned alerts on gets a notification
+// (needs supabase/11-dose-checks.sql). Each dose is alerted once.
+//
 // Test: POST with {"force": "breakfast"} (or lunch / evening / long) sends
 // that reminder straight away, skipping the time and log checks.
+// POST with {"test": "admins"} sends a test alert to admin phones.
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 // @ts-types="npm:@types/web-push@3.6.4"
@@ -68,10 +73,16 @@ async function loggedSince(kind: "meal" | "long", since: Date) {
   return (data ?? []).length > 0;
 }
 
-async function sendToDosePhones(payload: Record<string, string>) {
-  const { data: loggers, error: e1 } = await db.from("members").select("email").eq("role", "dad");
-  if (e1) throw new Error("Reading the family list failed: " + e1.message);
-  const emails = new Set((loggers ?? []).map((r) => r.email));
+async function emailsWithRole(role: "dad" | "admin") {
+  const { data, error } = await db.from("members").select("email").eq("role", role);
+  if (error) throw new Error("Reading the family list failed: " + error.message);
+  return new Set((data ?? []).map((r) => r.email as string));
+}
+
+const sendToDosePhones = async (payload: Record<string, string>) => sendToPhones(await emailsWithRole("dad"), payload);
+const sendToAdminPhones = async (payload: Record<string, string>) => sendToPhones(await emailsWithRole("admin"), payload);
+
+async function sendToPhones(emails: Set<string>, payload: Record<string, string>) {
   const { data: subs, error: e2 } = await db.from("push_subscriptions").select("*");
   if (e2) throw new Error("Reading phones failed: " + e2.message);
 
@@ -94,6 +105,34 @@ async function sendToDosePhones(payload: Record<string, string>) {
   return sent;
 }
 
+// New doses from the dose-logging phone -> one alert each to admin phones.
+async function doseAlerts(settings: Record<string, unknown>) {
+  const loggers = await emailsWithRole("dad");
+  const since = new Date(Date.now() - 30 * 60000).toISOString();   // don't alert about old doses
+  const { data, error } = await db.from("entries").select("*")
+    .in("kind", ["long", "meal"]).is("alerted_at", null).gte("created_at", since).order("created_at");
+  if (error) {
+    if (/alerted_at/.test(error.message)) return "not set up (run 11-dose-checks.sql)";
+    throw new Error("Reading new doses failed: " + error.message);
+  }
+  const fresh = (data ?? []).filter((e) => !e.logged_by || loggers.has(e.logged_by));
+  if (!fresh.length) return "none";
+  const name = String(settings.name || "").trim() || "Someone";
+  let sent = 0;
+  for (const e of fresh) {
+    const what = e.kind === "long" ? `${e.units} units long-acting` : `${e.units} units with a meal`;
+    const food = [e.food, e.carbs != null ? `${e.carbs}g carbs` : null].filter(Boolean).join(", ");
+    sent += await sendToAdminPhones({
+      title: `${name} logged ${what}`,
+      body: (food ? food + ". " : "") + "Tap to check it.",
+      tag: "dose-" + e.id,
+      url: "./#log",
+    });
+    await db.from("entries").update({ alerted_at: new Date().toISOString() }).eq("id", e.id);
+  }
+  return `${fresh.length} dose${fresh.length === 1 ? "" : "s"}, ${sent} notification${sent === 1 ? "" : "s"}`;
+}
+
 async function run(force?: Kind) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) throw new Error("VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY secret is missing.");
   const { data: st, error } = await db.from("settings").select("*").eq("id", 1).maybeSingle();
@@ -104,6 +143,11 @@ async function run(force?: Kind) {
   const day = `${now.y}-${String(now.m).padStart(2, "0")}-${String(now.d).padStart(2, "0")}`;
   const at = (t: string) => { const mm = toMin(t); return londonToUtc(now.y, now.m, now.d, Math.floor(mm / 60), mm % 60); };
   const results: Record<string, string> = {};
+
+  if (!force) {
+    try { results.dose_alerts = await doseAlerts(st); }
+    catch (e) { results.dose_alerts = "error: " + (e instanceof Error ? e.message : String(e)); }
+  }
 
   for (const r of REMINDERS) {
     if (force && r.kind !== force) continue;
@@ -129,6 +173,10 @@ Deno.serve(async (req) => {
   }
   try {
     const body = await req.json().catch(() => ({}));
+    if (body?.test === "admins") {
+      const n = await sendToAdminPhones({ title: "Dose alerts are working", body: "You'll get one of these when a new dose is logged.", tag: "dose-test", url: "./#log" });
+      return Response.json({ ok: true, results: { test: `sent to ${n} admin phone${n === 1 ? "" : "s"}` } });
+    }
     const force = ["breakfast", "lunch", "evening", "long"].includes(body?.force) ? body.force as Kind : undefined;
     return Response.json({ ok: true, results: await run(force) });
   } catch (e) {

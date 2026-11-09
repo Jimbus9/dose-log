@@ -64,6 +64,10 @@ Sent only to phones whose family-list role is "Logs doses", and only when nothin
 5. SQL Editor → run `supabase/07-schedule-reminders.sql` with `PASTE_SYNC_SECRET` replaced.
 6. On the dose-logging phone, open the app installed from Chrome and tap **Turn on reminders**.
 
+### Dose checks and alerts for admins
+
+Run `supabase/11-dose-checks.sql`. Admins then get a **Seen and agree** button on each dose in the Log; everyone sees who checked it, and only admins can mark it (the database enforces this). If the reminders function is set up, admins can also tap **Get dose alerts on this phone** in Settings to be notified whenever a new dose is logged on the Home-screen phone. Family members and the Home-screen phone never get these alerts.
+
 ## Privacy and safety notes
 
 - This is health information. You are responsible for the Supabase project you create: use a strong password, turn on two-factor sign-in for your Supabase and GitHub accounts, and only add people who should see it.

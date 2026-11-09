@@ -33,7 +33,8 @@ function urlBase64ToBytes(b64){
   return Uint8Array.from(raw, c => c.charCodeAt(0));
 }
 
-export async function enablePush(){
+/** Turn on notifications for this phone. `purpose` only changes the confirmation message. */
+export async function enablePush(purpose = "reminders"){
   state.push = "busy"; render();
   try {
     const permission = await Notification.requestPermission();
@@ -45,9 +46,12 @@ export async function enablePush(){
     const {error} = await db.from("push_subscriptions").upsert({endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth});
     if (error) throw error;
     state.push = "on"; render();
-    reg.showNotification("Reminders are on", {body: "You'll get a nudge here if a meal or dose hasn't been logged.", icon: "icons/icon-192.png", tag: "dose-log-test"});
+    const msg = purpose === "alerts"
+      ? ["Dose alerts are on", "You'll get a notification here when a new dose is logged."]
+      : ["Reminders are on", "You'll get a nudge here if a meal or dose hasn't been logged."];
+    reg.showNotification(msg[0], {body: msg[1], icon: "icons/icon-192.png", tag: "dose-log-test"});
   } catch(e){
     state.push = "off"; render();
-    banner("Couldn't turn on reminders: " + errText(e));
+    banner("Couldn't turn on notifications: " + errText(e));
   }
 }

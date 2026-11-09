@@ -11,7 +11,7 @@ import {state} from "./state.js";
 import {render, route} from "./render.js";
 import {sendCode, verifyCode, signOut} from "./auth.js";
 import {enablePush} from "./push.js";
-import {start, readFood, changeUnits, save, undo, onPhoto, openCarbsEditor, saveCarbs, askDeleteEntry, deleteEntry} from "./actions/dose.js";
+import {start, readFood, changeUnits, save, undo, onPhoto, openCarbsEditor, saveCarbs, askDeleteEntry, deleteEntry, ackEntry} from "./actions/dose.js";
 import {newAppt, editAppt, saveAppt, removeAppt} from "./actions/appointments.js";
 import {openNoteForm, startWriteUp, editNote, readNote, saveNote, removeNote} from "./actions/journal.js";
 import {saveSettings, addMember, changeRole, removeMember} from "./actions/settings.js";
@@ -34,6 +34,8 @@ async function onClick(ev){
   if (d.savecarbs) return saveCarbs(d.savecarbs);
   if (d.askdel) return askDeleteEntry(d.askdel);
   if (d.del) return deleteEntry(d.del);
+  if (d.ack) return ackEntry(d.ack, true);
+  if (d.unack) return ackEntry(d.unack, false);
   if (d.calday){ state.calDay = d.calday; state.confirmAppt = null; return render(); }
   if (d.editappt) return editAppt(d.editappt);
   if (d.askappt){ state.confirmAppt = d.askappt; return render(); }
@@ -75,6 +77,7 @@ async function onClick(ev){
     case "note-cancel": state.noteForm = null; render(); break;
     case "cancel-note": state.confirmNote = null; render(); break;
     case "push-on": enablePush(); break;
+    case "alerts-on": enablePush("alerts"); break;
     case "signout": signOut(); break;
     case "resend": {
       const email = store.get("doselog.pendingEmail");

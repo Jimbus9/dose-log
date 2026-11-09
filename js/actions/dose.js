@@ -150,3 +150,20 @@ export async function deleteEntry(id){
   if (error){ banner("Couldn't remove it."); scheduleReload(); }
   else if (e?.photo_path) db.storage.from("photos").remove([e.photo_path]);
 }
+
+/* ---------- Admin dose checks ---------- */
+
+/** Mark a dose as seen-and-agreed (ok = true) or undo that. The database checks the person is an admin. */
+export async function ackEntry(id, ok = true){
+  const e = state.entries.find(x => x.id === id);
+  const before = e && {acked_by: e.acked_by, acked_at: e.acked_at};
+  if (e){ e.acked_by = ok ? state.me.email : null; e.acked_at = ok ? new Date().toISOString() : null; render(); }
+  const {data, error} = await db.rpc("ack_entry", {entry_id: id, ok});
+  if (error){
+    if (e) Object.assign(e, before);
+    banner(/ack_entry/.test(error.message || "") ? "Dose checks aren't set up yet. Run supabase/11-dose-checks.sql." : "Couldn't save that: " + (error.message || "unknown error"));
+    return render();
+  }
+  if (e && data) Object.assign(e, data);
+  render();
+}

@@ -2,7 +2,7 @@
 
 import {state, KINDS} from "../state.js";
 import {esc, dayKey, timeOfDay, timeAgo, today, DAY_MS} from "../util.js";
-import {todays, lastOf, isLogger, memberName} from "../selectors.js";
+import {todays, lastOf, isLogger, isAdmin, memberName} from "../selectors.js";
 import {glucoseSection} from "./glucose.js";
 
 export function logView(){
@@ -13,10 +13,14 @@ export function logView(){
   const overdue = !long && Date.now() > due.getTime();
   const lastMeal = lastOf("meal");
   const name = state.settings.name;
+  // Admins see how many recent doses nobody has confirmed yet.
+  const toCheck = isAdmin() && "acked_at" in (state.entries[0] || {})
+    ? state.entries.filter(e => e.kind !== "snack" && !e.acked_at && Date.now() - new Date(e.at) < 2 * DAY_MS).length : 0;
   let html = `<div class="screen">
 
       <h1>${name ? esc(name) + " today" : "Today"}</h1>
       <div class="status">
+        ${toCheck ? `<div class="flag check-flag">${toCheck} dose${toCheck > 1 ? "s" : ""} to check</div>` : ""}
         ${overdue ? `<div class="flag">No long-acting dose logged yet. Usually taken by ${timeOfDay(due)}.</div>` : ""}
         <div class="stat"><span class="lab">Long-acting</span>
           ${long ? `<span class="val">${long.units} units</span><span class="pill ok">✓ ${timeOfDay(long.at)}</span>`
@@ -53,6 +57,7 @@ function entryRow(e){
   const photo = e.photo_path && state.photoUrls[e.photo_path];
   const img = e.photo_path ? (photo ? `<img src="${esc(photo.url)}" alt="Food photo" loading="lazy">` : `<span class="hint">Photo loading…</span>`) : "";
   const by = e.logged_by && e.logged_by !== state.me?.email && !isLogger() ? `<span class="by">Logged by ${esc(memberName(e.logged_by))}</span>` : "";
+  const checked = doseCheck(e);
 
   // The buttons under each entry change while someone is mid-way through removing it or editing its carbs.
   let actions;
@@ -61,5 +66,18 @@ function entryRow(e){
   else actions = `${e.kind !== "long" ? `<button class="link" data-carbs="${e.id}">${e.carbs == null ? "+ Add carbs" : "Change carbs"}</button>` : ""}<button class="link" data-askdel="${e.id}">Remove</button>`;
 
   return `<div class="entry" style="--c:${kind.color}"><time>${timeOfDay(e.at)}</time><div class="body">
-      <span class="kind">${kind.short}${dose}</span>${food ? `<span class="food">${food}</span>` : ""}${img}${by}<div class="acts">${actions}</div></div></div>`;
+      <span class="kind">${kind.short}${dose}</span>${food ? `<span class="food">${food}</span>` : ""}${img}${by}${checked}<div class="acts">${actions}</div></div></div>`;
+}
+
+/**
+ * Doses (not snacks) can be confirmed by an admin: "seen it, and the dose looks right".
+ * Everyone sees who checked it; only admins get the button. Needs 11-dose-checks.sql.
+ */
+function doseCheck(e){
+  if (e.kind === "snack" || !("acked_at" in e)) return "";
+  if (e.acked_at){
+    return `<span class="ack ok">✓ Checked by ${esc(memberName(e.acked_by) || "an admin")}, ${timeOfDay(e.acked_at)}${
+      isAdmin() ? ` <button class="link" data-unack="${e.id}">Undo</button>` : ""}</span>`;
+  }
+  return isAdmin() ? `<button class="ack-btn" data-ack="${e.id}">✓ Seen and agree</button>` : `<span class="ack">Not checked yet</span>`;
 }

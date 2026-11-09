@@ -54,6 +54,7 @@ export function settingsView(){
           <div class="field"><label for="set-rem-long">Long-acting</label><input class="input" id="set-rem-long" type="time" value="${esc(s.remind_long)}"></div>
         </div>
       </div>` : ""}
+      ${doseAlertsBlock()}
       <button class="primary dark" data-act="save-settings">Save settings</button>
       <p class="hint" id="set-msg"></p>
 
@@ -73,4 +74,21 @@ export function settingsView(){
       </div>
       ${signOutBlock}
     </div>`;
+}
+
+/** Admins can get a notification on their own phone whenever a new dose is logged. */
+function doseAlertsBlock(){
+  if (!("remind_breakfast" in state.settings)) return "";      // notifications aren't set up yet
+  const p = state.push;
+  let control;
+  if (p === "checking") control = "";
+  else if (p === "unsupported") control = `<p class="hint">Install this app from Chrome (Android) or add it to the Home Screen (iPhone) to get alerts.</p>`;
+  else if (p === "on") control = `<p class="rem-on" style="text-align:left">🔔 Dose alerts are on for this phone</p>`;
+  else if (p === "denied") control = `<p class="hint">Notifications are blocked for this app. Turn them on in the phone's settings, then come back here.</p>`;
+  else control = `<button class="secondary" data-act="alerts-on" ${p === "busy" ? "disabled" : ""}>${p === "busy" ? "Turning on…" : "Get dose alerts on this phone"}</button>`;
+  return `<div class="section">
+        <h2>Dose alerts</h2>
+        <p class="hint">Admins get a notification when a new dose is logged on the Home-screen phone, so it can be checked. Family members and the Home-screen phone don't get these.</p>
+        ${control}
+      </div>`;
 }
