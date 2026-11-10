@@ -18,6 +18,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>
+  // Apply this device's Light/Dark choice before anything is drawn (see js/theme.js).
+  try { var t = localStorage.getItem("doselog.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -31,6 +35,14 @@
   <div id="banner" class="banner" role="status" hidden></div>
   <main id="view"><p class="hint">Loading…</p></main>
   <p class="note">A log only. It never suggests a dose. Follow the diabetes team's plan.</p>
+  <div class="appearance" role="group" aria-label="Display">
+    <span>Display</span>
+    <div class="seg">
+      <button type="button" data-theme-set="auto">Auto</button>
+      <button type="button" data-theme-set="light">Light</button>
+      <button type="button" data-theme-set="dark">Dark</button>
+    </div>
+  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>

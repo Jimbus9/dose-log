@@ -10,6 +10,7 @@
  *   actions/      everything that changes data (log, appointments, journal, settings)
  *   events.js     click / submit / change handling
  *   push.js       optional reminder notifications
+ *   theme.js      Light / Dark / Auto display, per device
  */
 
 import {$} from "./util.js";
@@ -18,6 +19,9 @@ import {startBackgroundRefresh} from "./data.js";
 import {initEvents} from "./events.js";
 import {initPush} from "./push.js";
 import {startAuth} from "./auth.js";
+import {initTheme} from "./theme.js";
+
+initTheme();
 
 if (!isConfigured() || !libraryLoaded()){
   $("#view").innerHTML = `<div class="empty">${!libraryLoaded()

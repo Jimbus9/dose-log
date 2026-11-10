@@ -8,10 +8,15 @@
   --r:18px;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root{
+/* Dark follows the phone unless this device picked Light or Dark (see js/theme.js). */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0D1518; --surface:#162228; --ink:#E7EFF1; --muted:#9BAEB5; --line:#2A3B42;
   --long:#4CC0BB; --meal:#F0995A; --snack:#B49CE2; --on:#0D1518;
   --ok:#62C784; --ok-soft:#173226; --warn:#F2867E; --warn-soft:#3A1E1C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1518; --surface:#162228; --ink:#E7EFF1; --muted:#9BAEB5; --line:#2A3B42;
+  --long:#4CC0BB; --meal:#F0995A; --snack:#B49CE2; --on:#0D1518;
+  --ok:#62C784; --ok-soft:#173226; --warn:#F2867E; --warn-soft:#3A1E1C; color-scheme:dark}
 
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -194,4 +199,8 @@ textarea.input{font-size:18px;line-height:1.4;resize:vertical;min-height:96px}
 .hist-bar .low{background:var(--warn)}
 .hist-bar .in{background:var(--ok)}
 .hist-bar .high{background:var(--meal)}
+.appearance{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
+.appearance .seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.appearance button{min-height:40px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-weight:700;font-size:15px}
+.appearance button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}
