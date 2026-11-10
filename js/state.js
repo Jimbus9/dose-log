@@ -40,5 +40,8 @@ export const state = {
   appts: [], calMonth: null, calDay: null, apptForm: null, confirmAppt: null,
   notes: [], noteForm: null, confirmNote: null, focusNote: null,
   glucose: [], libreStatus: null,
+  // Glucose history screen: the day on show (YYYY-MM-DD), its readings and log entries,
+  // and a summary of recent days.
+  hist: {day: null, readings: [], entries: [], days: null, loading: false, exporting: null},
   push: null
 };

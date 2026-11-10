@@ -9,6 +9,8 @@ import {logView} from "./views/log.js";
 import {calendarView} from "./views/calendar.js";
 import {journalView} from "./views/journal.js";
 import {settingsView} from "./views/settings.js";
+import {historyView} from "./views/history.js";
+import {openHistory} from "./actions/history.js";
 
 const VIEWS = ["home", "log", "calendar", "journal", "settings"];
 
@@ -18,6 +20,7 @@ const VIEWS = ["home", "log", "calendar", "journal", "settings"];
  */
 const VIEW_FROM_HASH = new Map([
   ["home", "home"], ["log", "log"], ["calendar", "calendar"], ["journal", "journal"], ["settings", "settings"],
+  ["history", "history"],
   ["dad", "home"], ["family", "log"]
 ]);
 export const viewFromHash = () => VIEW_FROM_HASH.get((location.hash || "").slice(1));
@@ -30,6 +33,7 @@ export function route(){
   const view = viewFromHash();
   if (view) state.view = view;
   if (state.view !== "home") state.step = "home";
+  if (state.view === "history" && state.me && !state.hist.day) openHistory();   // opened from a bookmark
   render();
   window.scrollTo(0, 0);
 }
@@ -40,7 +44,8 @@ export function render(){
   $("#tab-settings").hidden = isLogger();
   for (const v of VIEWS){
     const tab = $("#tab-" + v);
-    if (v === state.view) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
+    const current = state.view === "history" ? "log" : state.view;    // history is part of the Log
+    if (v === current) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
   }
 
   if (!state.me) html = loginView();
@@ -51,6 +56,7 @@ export function render(){
     html = homeView();
   }
   else if (state.view === "log") html = logView();
+  else if (state.view === "history") html = historyView();
   else if (state.view === "settings") html = settingsView();
   else if (state.view === "journal") html = journalView();
   else if (state.view === "calendar") html = calendarView();
@@ -68,4 +74,5 @@ export function softRender(){
   if (state.view === "home" && (state.step === "home" || state.step === "appts")) return render();
   if (state.view === "calendar" && !state.apptForm && !state.confirmAppt) return render();
   if (state.view === "journal" && !state.noteForm && !state.confirmNote) return render();
+  if (state.view === "history") return render();
 }

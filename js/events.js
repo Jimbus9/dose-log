@@ -15,6 +15,7 @@ import {start, readFood, changeUnits, save, undo, onPhoto, openCarbsEditor, save
 import {newAppt, editAppt, saveAppt, removeAppt} from "./actions/appointments.js";
 import {openNoteForm, startWriteUp, editNote, readNote, saveNote, removeNote} from "./actions/journal.js";
 import {saveSettings, addMember, changeRole, removeMember} from "./actions/settings.js";
+import {openHistory, shiftDay, exportCsv} from "./actions/history.js";
 
 export function initEvents(){
   window.addEventListener("hashchange", route);
@@ -45,6 +46,8 @@ async function onClick(ev){
   if (d.editnote) return editNote(d.editnote);
   if (d.asknote){ state.confirmNote = d.asknote; return render(); }
   if (d.rmnote) return removeNote(d.rmnote);
+  if (d.histday) return openHistory(d.histday);
+  if (d.export) return exportCsv(d.export);
   if (d.askmember){ state.confirmMember = d.askmember; return render(); }
   if (d.rmmember) return removeMember(d.rmmember);
 
@@ -78,6 +81,9 @@ async function onClick(ev){
     case "cancel-note": state.confirmNote = null; render(); break;
     case "push-on": enablePush(); break;
     case "alerts-on": enablePush("alerts"); break;
+    case "history": location.hash = "#history"; openHistory(); break;
+    case "hist-prev": shiftDay(-1); break;
+    case "hist-next": shiftDay(1); break;
     case "signout": signOut(); break;
     case "resend": {
       const email = store.get("doselog.pendingEmail");
@@ -108,4 +114,5 @@ function onChange(ev){
     if (a) $("#n-date").value = dayKey(a.starts_at);
   }
   if (el.id === "photo-in") onPhoto(el.files[0]);
+  if (el.id === "hist-date" && el.value) openHistory(el.value);
 }

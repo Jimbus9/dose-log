@@ -22,7 +22,6 @@ const PASSWORD = Deno.env.get("LIBRE_PASSWORD") ?? "";
 const SYNC_SECRET = Deno.env.get("SYNC_SECRET") ?? "";
 const VERSION = Deno.env.get("LIBRE_VERSION") ?? "4.16.0";
 const DEFAULT_BASE = "https://api.libreview.io";
-const KEEP_DAYS = 90;
 
 const db = createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
 
@@ -150,7 +149,6 @@ async function sync() {
     const { error } = await db.from("glucose").upsert(latest, { onConflict: "ts" });
     if (error) throw new Error("Saving the latest reading failed: " + error.message);
   }
-  await db.from("glucose").delete().lt("ts", new Date(Date.now() - KEEP_DAYS * 864e5).toISOString());
   return { saved: history.length + (latest ? 1 : 0), latest };
 }
 

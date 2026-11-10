@@ -179,4 +179,19 @@ textarea.input{font-size:18px;line-height:1.4;resize:vertical;min-height:96px}
 .ack .link{font-weight:400;margin-left:6px}
 .ack-btn{align-self:flex-start;min-height:44px;padding:0 16px;border-radius:10px;border:2px solid var(--ok);background:var(--ok-soft);color:var(--ok);font-weight:700;font-size:16px}
 .flag.check-flag{background:var(--ok-soft);color:var(--ok)}
+.hist-nav{display:grid;grid-template-columns:44px 1fr 44px;gap:10px;align-items:center}
+.hist-day{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.hist-day strong{font-size:19px;text-align:center}
+.hist-date{min-height:44px;font-size:17px;max-width:200px}
+.cal-nav:disabled{opacity:.35}
+.hist-row{display:grid;grid-template-columns:96px 1fr;grid-template-areas:"day bar" "day num";gap:4px 12px;align-items:center;width:100%;padding:12px 14px;border:0;border-top:1px solid var(--line);background:transparent;text-align:left}
+.hist-row:first-child{border-top:0}
+.hist-row.is-sel{background:var(--bg)}
+.hist-row-day{grid-area:day;font-weight:700;font-size:16px}
+.hist-row-num{grid-area:num;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hist-bar{grid-area:bar;display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
+.hist-bar i{display:block;height:100%}
+.hist-bar .low{background:var(--warn)}
+.hist-bar .in{background:var(--ok)}
+.hist-bar .high{background:var(--meal)}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}
