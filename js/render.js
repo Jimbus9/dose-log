@@ -41,7 +41,10 @@ export function route(){
 export function render(){
   let html;
   $("#tabs").hidden = !state.me || (isLogger() && !loggerSeesRecords());
+  // The Home-screen phone doesn't get Settings or the Calendar, and doesn't see the
+  // glucose graph (it already has the Libre app; two graphs were confusing).
   $("#tab-settings").hidden = isLogger();
+  $("#tab-calendar").hidden = isLogger();
   for (const v of VIEWS){
     const tab = $("#tab-" + v);
     const current = state.view === "history" ? "log" : state.view;    // history is part of the Log
@@ -49,7 +52,7 @@ export function render(){
   }
 
   if (!state.me) html = loginView();
-  else if (isLogger() && state.view !== "home" && (!loggerSeesRecords() || state.view === "settings")){
+  else if (isLogger() && state.view !== "home" && (!loggerSeesRecords() || ["settings", "calendar", "history"].includes(state.view))){
     // This phone isn't allowed that screen: back to the big buttons.
     state.view = "home";
     if (location.hash && location.hash !== "#home") history.replaceState(null, "", "#home");

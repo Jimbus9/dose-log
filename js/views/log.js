@@ -32,7 +32,7 @@ export function logView(){
         <div class="stat"><span class="lab">Meals today</span><span class="val">${todays("meal").length}</span></div>
         <div class="stat"><span class="lab">Snacks today</span><span class="val">${todays("snack").length}</span></div>
       </div>
-      ${glucoseSection()}`;
+      ${isLogger() ? "" : glucoseSection()}`;
 
   if (!state.entries.length){
     return html + `<div class="empty">Nothing logged yet. Every tap on the Home screen shows up here straight away, with times, units and food photos.</div></div>`;
