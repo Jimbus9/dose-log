@@ -4,7 +4,7 @@ import {$} from "./util.js";
 import {state} from "./state.js";
 import {isLogger, loggerSeesRecords} from "./selectors.js";
 import {loginView} from "./views/login.js";
-import {homeView, appointmentsListView, alreadyTakenView, doseView, foodView, tickView} from "./views/home.js";
+import {homeView, appointmentsListView, alreadyTakenView, recentMealView, doseView, foodView, tickView} from "./views/home.js";
 import {logView} from "./views/log.js";
 import {calendarView} from "./views/calendar.js";
 import {journalView} from "./views/journal.js";
@@ -26,7 +26,7 @@ const VIEW_FROM_HASH = new Map([
 export const viewFromHash = () => VIEW_FROM_HASH.get((location.hash || "").slice(1));
 
 /** The Home screen has its own little flow; state.step says where we are in it. */
-const HOME_STEPS = {home: homeView, already: alreadyTakenView, dose: doseView, food: foodView, tick: tickView, appts: appointmentsListView};
+const HOME_STEPS = {home: homeView, already: alreadyTakenView, recentMeal: recentMealView, dose: doseView, food: foodView, tick: tickView, appts: appointmentsListView};
 
 /** The page address changed (a tab was tapped, or a link was opened). */
 export function route(){

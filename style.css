@@ -203,4 +203,11 @@ textarea.input{font-size:18px;line-height:1.4;resize:vertical;min-height:96px}
 .appearance .seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
 .appearance button{min-height:40px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-weight:700;font-size:15px}
 .appearance button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.today-so-far{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.today-so-far .lab{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.today-so-far ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.today-so-far li{display:grid;grid-template-columns:22px auto 1fr;gap:10px;align-items:baseline;font-size:20px;line-height:1.3}
+.today-so-far .tick-mark{color:var(--c);font-weight:700}
+.today-so-far time{font-weight:700;font-variant-numeric:tabular-nums}
+.today-so-far .what{min-width:0;overflow-wrap:anywhere}
 @media (prefers-reduced-motion: reduce){.big:active{transform:none}}

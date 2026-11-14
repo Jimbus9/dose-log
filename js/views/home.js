@@ -2,15 +2,17 @@
  * The Home screen: the big buttons used by the person taking the doses.
  * It is a short flow, tracked by state.step:
  *   home -> dose (how many units) -> food -> tick (done)
- * plus "already" (long-acting already logged today) and "appts" (appointment list).
+ * plus "already" (long-acting already logged today), "recentMeal" (a meal dose in the
+ * last 2 hours) and "appts" (appointment list).
  */
 
 import {state, KINDS} from "../state.js";
 import {esc, timeOfDay} from "../util.js";
-import {todays, isLogger, upcoming, apptWhen} from "../selectors.js";
+import {todays, lastOf, isLogger, upcoming, apptWhen} from "../selectors.js";
 
 export function homeView(){
   const long = todays("long")[0];
+  const meal = todays("meal")[0];                 // newest first
   const date = new Date().toLocaleDateString("en-GB", {weekday: "long", day: "numeric", month: "long"});
   const name = state.settings.name;
   return `<div class="screen">
@@ -21,15 +23,47 @@ export function homeView(){
           <span>${long ? "✓ Taken today, " + timeOfDay(long.at) + " · " + long.units + " units" : "Not taken yet today"}</span>
         </button>
         <button class="big" style="--c:${KINDS.meal.color}" data-go="meal">
-          <strong>Meal + insulin</strong><span>Log your dose and what you ate</span>
+          <strong>Meal + insulin</strong><span>${meal ? "Last: " + timeOfDay(meal.at) + " · " + meal.units + " units" : "Log your dose and what you ate"}</span>
         </button>
         <button class="big" style="--c:${KINDS.snack.color}" data-go="snack">
           <strong>Snack</strong><span>No insulin, just what you ate</span>
         </button>
       </div>
+      ${todaySoFar()}
       ${nextApptCard()}
       ${isLogger() ? remindersCard() : ""}
 
+    </div>`;
+}
+
+/** Today's entries in plain words, oldest first, so the person can see what they've already logged. Read-only. */
+function todaySoFar(){
+  const list = todays().slice().reverse();
+  if (!list.length) return "";
+  return `<section class="today-so-far" aria-label="Logged today">
+      <span class="lab">Today so far</span>
+      <ul>${list.map(e => {
+        const k = KINDS[e.kind];
+        const what = e.kind === "snack" ? "Snack" : `${k.short} · ${e.units} units`;
+        return `<li style="--c:${k.color}"><span class="tick-mark" aria-hidden="true">✓</span><time>${timeOfDay(e.at)}</time>
+          <span class="what">${what}${e.food ? `<span class="muted"> · ${esc(e.food)}</span>` : ""}</span></li>`;
+      }).join("")}</ul>
+    </section>`;
+}
+
+/** Shown when a meal dose is tapped within 2 hours of the last one. */
+export function recentMealView(){
+  const last = lastOf("meal");
+  const mins = Math.max(1, Math.round((Date.now() - new Date(last.at)) / 60000));
+  const ago = mins < 60 ? `${mins} minute${mins === 1 ? "" : "s"} ago` : `${Math.floor(mins / 60)} hr ${mins % 60} min ago`;
+  return `<div class="screen">
+      <div class="alert" role="alert">
+        <h2>Is this a new meal?</h2>
+        <p>You logged <b>${last.units} units</b> with a meal at <b>${timeOfDay(last.at)}</b> (${ago})${last.food ? `: ${esc(last.food)}` : ""}.</p>
+        <p>If you're not sure whether you've had your dose, check before taking more.</p>
+      </div>
+      <button class="primary dark" data-act="home">Go back</button>
+      <button class="secondary" data-act="force-meal">Yes, this is a new meal</button>
     </div>`;
 }
 
