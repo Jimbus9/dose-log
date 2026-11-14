@@ -2,13 +2,12 @@
  * The Home screen: the big buttons used by the person taking the doses.
  * It is a short flow, tracked by state.step:
  *   home -> dose (how many units) -> food -> tick (done)
- * plus "already" (long-acting already logged today), "recentMeal" (a meal dose in the
- * last 2 hours) and "appts" (appointment list).
+ * plus "already" (long-acting already logged today) and "appts" (appointment list).
  */
 
 import {state, KINDS} from "../state.js";
 import {esc, timeOfDay} from "../util.js";
-import {todays, lastOf, isLogger, upcoming, apptWhen} from "../selectors.js";
+import {todays, isLogger, upcoming, apptWhen} from "../selectors.js";
 
 export function homeView(){
   const long = todays("long")[0];
@@ -49,22 +48,6 @@ function todaySoFar(){
           <span class="what">${what}${e.food ? `<span class="muted"> · ${esc(e.food)}</span>` : ""}</span></li>`;
       }).join("")}</ul>
     </section>`;
-}
-
-/** Shown when a meal dose is tapped within 2 hours of the last one. */
-export function recentMealView(){
-  const last = lastOf("meal");
-  const mins = Math.max(1, Math.round((Date.now() - new Date(last.at)) / 60000));
-  const ago = mins < 60 ? `${mins} minute${mins === 1 ? "" : "s"} ago` : `${Math.floor(mins / 60)} hr ${mins % 60} min ago`;
-  return `<div class="screen">
-      <div class="alert" role="alert">
-        <h2>Is this a new meal?</h2>
-        <p>You logged <b>${last.units} units</b> with a meal at <b>${timeOfDay(last.at)}</b> (${ago})${last.food ? `: ${esc(last.food)}` : ""}.</p>
-        <p>If you're not sure whether you've had your dose, check before taking more.</p>
-      </div>
-      <button class="primary dark" data-act="home">Go back</button>
-      <button class="secondary" data-act="force-meal">Yes, this is a new meal</button>
-    </div>`;
 }
 
 function nextApptCard(){

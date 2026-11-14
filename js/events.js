@@ -55,7 +55,6 @@ async function onClick(ev){
   switch (d.act){
     case "home": state.step = "home"; state.draft = null; banner(""); render(); window.scrollTo(0, 0); break;
     case "force-long": start("long", true); break;
-    case "force-meal": start("meal", true); break;
     case "minus": changeUnits(-1); break;
     case "plus": changeUnits(1); break;
     case "to-food": state.step = "food"; render(); break;

@@ -14,18 +14,10 @@ import {render} from "../render.js";
 import {loadEntries, scheduleReload} from "../data.js";
 
 /** Begin a log flow. `kind` is "long", "meal" or "snack". */
-// A second meal dose within this long of the last one gets a "is this a new meal?" check.
-export const MEAL_RECHECK_MS = 2 * 3600e3;
-
 export async function start(kind, force){
   if (kind === "long" && !force){
     await loadEntries();                // check the freshest log before allowing a second long-acting dose
     if (todays("long").length){ state.step = "already"; return render(); }
-  }
-  if (kind === "meal" && !force){
-    await loadEntries();
-    const last = lastOf("meal");
-    if (last && Date.now() - new Date(last.at) < MEAL_RECHECK_MS){ state.step = "recentMeal"; return render(); }
   }
   const prev = lastOf(kind);
   const units = kind === "long" ? (prev?.units ?? state.settings.long_units)
