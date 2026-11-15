@@ -8,17 +8,20 @@
 
 import {$, banner, store, dayKey} from "./util.js";
 import {state} from "./state.js";
-import {render, route} from "./render.js";
+import {render, route, viewFromHash} from "./render.js";
 import {sendCode, verifyCode, signOut} from "./auth.js";
 import {enablePush} from "./push.js";
-import {start, readFood, changeUnits, save, undo, onPhoto, openCarbsEditor, saveCarbs, askDeleteEntry, deleteEntry, ackEntry} from "./actions/dose.js";
+import {start, discardDraft, readFood, changeUnits, save, undo, onPhoto, openCarbsEditor, saveCarbs, askDeleteEntry, deleteEntry, ackEntry} from "./actions/dose.js";
 import {newAppt, editAppt, saveAppt, removeAppt} from "./actions/appointments.js";
 import {openNoteForm, startWriteUp, editNote, readNote, saveNote, removeNote} from "./actions/journal.js";
 import {saveSettings, addMember, changeRole, removeMember} from "./actions/settings.js";
 import {openHistory, shiftDay, exportCsv} from "./actions/history.js";
 
 export function initEvents(){
-  window.addEventListener("hashchange", route);
+  window.addEventListener("hashchange", () => {
+    if (state.draft && viewFromHash() !== "home") discardDraft();   // left a half-finished log via the tabs
+    route();
+  });
   document.addEventListener("click", onClick);
   document.addEventListener("submit", onSubmit);
   document.addEventListener("change", onChange);
@@ -53,7 +56,7 @@ async function onClick(ev){
 
   // Named actions.
   switch (d.act){
-    case "home": state.step = "home"; state.draft = null; banner(""); render(); window.scrollTo(0, 0); break;
+    case "home": state.step = "home"; discardDraft(); banner(""); render(); window.scrollTo(0, 0); break;
     case "force-long": start("long", true); break;
     case "minus": changeUnits(-1); break;
     case "plus": changeUnits(1); break;

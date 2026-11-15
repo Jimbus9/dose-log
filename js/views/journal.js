@@ -11,7 +11,7 @@ export function journalView(){
     .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at)).slice(0, 3);
   return `<div class="screen">
       <div><h1>Health journal</h1><p class="date">What was said at appointments, so everyone knows what's going on.</p></div>
-      ${readOnly() ? "" : state.noteForm ? noteFormView() : `<button class="primary dark" data-act="note-new">+ Write an entry</button>`}
+      ${state.noteForm ? noteFormView() : `<button class="primary dark" data-act="note-new">+ Write an entry</button>`}
       ${!readOnly() && !state.noteForm && waiting.length ? `<section class="day"><h3>Waiting for a write-up</h3><div class="entries">${waiting.map(a => `
         <div class="entry" style="--c:var(--meal)"><time>${timeOfDay(a.starts_at)}</time><div class="body">
           <span class="kind">${esc(a.title)}</span><span class="food">${dayLabel(a.starts_at)}</span>
@@ -21,12 +21,15 @@ export function journalView(){
     </div>`;
 }
 
+/** Everyone can write entries. The Home-screen phone can only edit or delete the ones it wrote (the database enforces this too). */
+const canEdit = n => !readOnly() || n.written_by === state.me?.email;
+
 function noteCard(n){
   const appt = n.appointment_id && state.appts.find(x => x.id === n.appointment_id);
   const section = (label, text) => text ? `<div class="note-sec"><span class="lab">${label}</span><p>${esc(text)}</p></div>` : "";
   let actions;
   if (state.confirmNote === n.id) actions = `<span>Delete this entry?</span><button class="link danger" data-rmnote="${n.id}">Yes, delete</button><button class="link" data-act="cancel-note">Keep</button>`;
-  else actions = readOnly() ? "" : `<button class="link" data-editnote="${n.id}">Edit</button><button class="link" data-asknote="${n.id}">Delete</button>`;
+  else actions = !canEdit(n) ? "" : `<button class="link" data-editnote="${n.id}">Edit</button><button class="link" data-asknote="${n.id}">Delete</button>`;
   return `<article class="note-card${state.focusNote === n.id ? " is-focus" : ""}" id="note-${n.id}">
       <header><span class="when">${dateLabel(n.happened_on)}</span><strong>${esc(appt ? appt.title : (n.title || "Note"))}</strong>
         ${n.written_by ? `<span class="by">Written by ${esc(memberName(n.written_by))}${n.updated_at && n.updated_at !== n.created_at ? " · edited" : ""}</span>` : ""}</header>

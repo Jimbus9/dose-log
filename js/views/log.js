@@ -60,8 +60,10 @@ function entryRow(e){
   const checked = doseCheck(e);
 
   // The buttons under each entry change while someone is mid-way through removing it or editing its carbs.
+  // The Home-screen phone can only change entries it logged itself (the database enforces this too).
   let actions;
-  if (state.confirmDel === e.id) actions = `<span>Remove this entry?</span><button class="link danger" data-del="${e.id}">Yes, remove</button><button class="link" data-act="cancel-del">Keep</button>`;
+  if (isLogger() && e.logged_by !== state.me?.email) actions = "";
+  else if (state.confirmDel === e.id) actions = `<span>Remove this entry?</span><button class="link danger" data-del="${e.id}">Yes, remove</button><button class="link" data-act="cancel-del">Keep</button>`;
   else if (state.editCarbs === e.id) actions = `<div class="inline-edit"><input id="carbs-${e.id}" type="number" inputmode="numeric" min="0" max="400" aria-label="Carbs in grams" placeholder="grams"><button class="save" data-savecarbs="${e.id}">Save</button><button class="link" data-act="cancel-carbs">Cancel</button></div>`;
   else actions = `${e.kind !== "long" ? `<button class="link" data-carbs="${e.id}">${e.carbs == null ? "+ Add carbs" : "Change carbs"}</button>` : ""}<button class="link" data-askdel="${e.id}">Remove</button>`;
 
