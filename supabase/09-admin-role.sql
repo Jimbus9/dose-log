@@ -1,6 +1,6 @@
 -- Dose Log: admin role. Only admins can change settings and the family list.
 -- Run once in Supabase > SQL Editor. Safe to run again.
--- Change the email on the last line to whoever should be the first admin.
+-- On a fresh install, add yourself as the first admin afterwards (see README, step 4).
 
 alter table public.members drop constraint if exists members_role_check;
 alter table public.members add constraint members_role_check check (role in ('dad', 'family', 'admin'));
@@ -37,5 +37,3 @@ drop policy if exists "family edits settings" on public.settings;
 drop policy if exists "admin edits settings"  on public.settings;
 create policy "admin edits settings" on public.settings for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
-
-update public.members set role = 'admin' where email = 'you@example.com';
