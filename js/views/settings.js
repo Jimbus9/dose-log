@@ -41,7 +41,7 @@ export function settingsView(){
       ${"dad_sees_records" in s ? `<div class="section">
         <h2>Home-screen phone</h2>
         <label class="check"><input type="checkbox" id="set-logger-sees"${s.dad_sees_records ? " checked" : ""}> Can look back at the log, calendar and journal</label>
-        <p class="hint">Read-only. Turn off to show only the big buttons.</p>
+        <p class="hint">It can also write journal entries and edit its own. Turn off to show only the big buttons.</p>
       </div>` : ""}
       ${"remind_breakfast" in s ? `<div class="section">
         <h2>Reminders</h2>

@@ -95,11 +95,18 @@ async function sendToPhones(emails: Set<string>, payload: Record<string, string>
     );
     const headers = { ...req.headers } as Record<string, string>;
     delete headers["Content-Length"];
-    const res = await fetch(req.endpoint, { method: req.method, headers, body: req.body as unknown as BodyInit });
-    if (res.status === 404 || res.status === 410) {
-      await db.from("push_subscriptions").delete().eq("endpoint", s.endpoint);   // phone turned reminders off
-    } else if (res.ok) {
-      sent++;
+    try {
+      const res = await fetch(req.endpoint, { method: req.method, headers, body: req.body as unknown as BodyInit });
+      if (res.status === 404 || res.status === 410) {
+        await db.from("push_subscriptions").delete().eq("endpoint", s.endpoint);   // phone turned reminders off
+      } else if (res.ok) {
+        sent++;
+      } else {
+        console.warn(`Push service refused a notification (HTTP ${res.status}).`);
+      }
+    } catch (e) {
+      // One phone's push service being unreachable mustn't stop the others getting it.
+      console.warn("Couldn't reach a push service: " + (e instanceof Error ? e.message : String(e)));
     }
   }
   return sent;
@@ -161,7 +168,14 @@ async function run(force?: Kind) {
         .upsert({ day, kind: r.kind }, { onConflict: "day,kind", ignoreDuplicates: true }).select();
       if (!claimed || !claimed.length) { results[r.kind] = "already sent"; continue; }
     }
-    const n = await sendToDosePhones({ title: r.title, body: r.body, tag: "reminder-" + r.kind, url: "./#home" });
+    let n = 0;
+    try {
+      n = await sendToDosePhones({ title: r.title, body: r.body, tag: "reminder-" + r.kind, url: "./#home" });
+    } finally {
+      // Reached no phone: release today's claim so the next run (5 minutes later, still
+      // inside the send window) tries again instead of the reminder being lost.
+      if (!force && n === 0) await db.from("reminder_log").delete().eq("day", day).eq("kind", r.kind);
+    }
     results[r.kind] = `sent to ${n} phone${n === 1 ? "" : "s"}`;
   }
   return results;

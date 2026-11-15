@@ -94,10 +94,12 @@ export function dayStats(readings){
 /* ---------- Export ---------- */
 
 const csvCell = v => {
-  const s = v == null ? "" : String(v);
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  let s = v == null ? "" : String(v);
+  // Typed text starting with = + - @ would run as a formula in Excel or Sheets; a leading ' stops that.
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
-const ukTime = t => new Date(t).toLocaleString("en-GB", {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"}).replace(",", "");
+const ukTime = t => new Date(t).toLocaleString("en-GB", {timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"}).replace(",", "");
 
 /** Download every glucose reading, or every log entry, as a spreadsheet-friendly CSV file. */
 export async function exportCsv(kind){

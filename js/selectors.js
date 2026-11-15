@@ -18,7 +18,7 @@ export const isAdmin = () => state.me?.role === ROLE.ADMIN;
 
 /**
  * The dose-logging phone can also look back at the log, calendar and journal
- * (read-only), unless an admin switches that off in Settings.
+ * (and write its own journal entries), unless an admin switches that off in Settings.
  */
 export const loggerSeesRecords = () => state.settings.dad_sees_records !== false;
 export const readOnly = () => isLogger();

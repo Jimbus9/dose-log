@@ -34,6 +34,7 @@ You need a GitHub account, a Supabase account, and an email account that can sen
    insert into public.members (email, name, role) values ('you@example.com', 'Your name', 'admin');
    ```
    Then run `supabase/10-block-signups.sql`. From then on only people on the family list can create an account, so add each person to the family list before they first sign in.
+   Then run `supabase/13-integrity.sql` (see "Who can do what" below).
 5. **Set up sign-in emails.** Supabase → **Authentication → Emails → Set up SMTP** (Gmail: `smtp.gmail.com`, port 587, an [app password](https://myaccount.google.com/apppasswords)). Supabase only lets you edit email templates once custom SMTP is on. Then, in both **Confirm sign up** and **Magic Link**, make the message body show the code:
    ```html
    <h2>Your Dose Log code</h2><p>Type this into Dose Log:</p><h1>{{ .Token }}</h1>
@@ -51,7 +52,7 @@ LibreLinkUp has no official API. This uses the same requests as the LibreLinkUp 
 2. SQL Editor → run `supabase/03-glucose.sql`.
 3. Edge Functions → deploy `supabase/functions/libre-sync/index.ts` as `libre-sync`, with JWT verification turned off (it checks its own secret instead).
 4. Edge Functions → Secrets: `LIBRE_EMAIL`, `LIBRE_PASSWORD`, `SYNC_SECRET` (a long random string).
-5. SQL Editor → run `supabase/04-schedule.sql` with `PASTE_SYNC_SECRET` replaced by the same random string. Don't commit the real value.
+5. SQL Editor → run `supabase/04-schedule.sql` with `PASTE_YOUR_PROJECT_REF` replaced by your project ref (the part before `.supabase.co` in your project URL) and `PASTE_SYNC_SECRET` by the same random string. Don't commit the real values.
 
 ## Optional: reminder notifications
 
@@ -61,7 +62,7 @@ Sent only to phones whose family-list role is "Logs doses", and only when nothin
 2. Generate a key pair with `npx web-push generate-vapid-keys`, and put the public half in `config.js` as `vapidPublicKey`.
 3. Edge Functions → deploy `supabase/functions/reminders/index.ts` as `reminders`, JWT verification off.
 4. Edge Functions → Secrets: `VAPID_PUBLIC_KEY` (same as `vapidPublicKey`), `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` address of yours, e.g. `mailto:you@example.com`) and `SYNC_SECRET` (the same one as above).
-5. SQL Editor → run `supabase/07-schedule-reminders.sql` with `PASTE_SYNC_SECRET` replaced.
+5. SQL Editor → run `supabase/07-schedule-reminders.sql` with `PASTE_YOUR_PROJECT_REF` and `PASTE_SYNC_SECRET` replaced, as above.
 6. On the dose-logging phone, open the app installed from Chrome and tap **Turn on reminders**.
 
 ### Glucose history
@@ -72,10 +73,20 @@ Readings are kept indefinitely. From the glucose card on the Log screen, **See p
 
 Run `supabase/11-dose-checks.sql`. Admins then get a **Seen and agree** button on each dose in the Log; everyone sees who checked it, and only admins can mark it (the database enforces this). If the reminders function is set up, admins can also tap **Get dose alerts on this phone** in Settings to be notified whenever a new dose is logged on the Home-screen phone. Family members and the Home-screen phone never get these alerts.
 
+## Who can do what
+
+The database enforces all of this, not just the app (`09-admin-role.sql` and `13-integrity.sql`):
+
+- **Admin:** everything, including Settings, the family list and marking doses as checked.
+- **Family:** log, edit and remove entries; add and edit appointments and journal entries.
+- **Logs doses** (the Home-screen phone): log doses, meals and snacks, and change or remove only the ones it logged; write journal entries, and edit or delete only its own; read appointments. It can look back at the log, calendar and journal unless an admin turns that off in Settings.
+- "Logged by", "Written by" and "Created by" are always set by the database from the signed-in email, and a new dose can't arrive already marked as checked.
+
 ## Privacy and safety notes
 
 - This is health information. You are responsible for the Supabase project you create: use a strong password, turn on two-factor sign-in for your Supabase and GitHub accounts, and only add people who should see it.
-- Photos are stored in a private bucket and shown through short-lived links.
+- Photos are stored in a private bucket and shown through short-lived links. A photo taken for a log that is then abandoned is deleted.
+- The Supabase library is kept in this repository (`js/vendor/`, copied unchanged from the npm package) rather than loaded from a CDN, so no outside server can change the code that handles your sign-in and data.
 - With `10-block-signups.sql` run, an email that isn't on the family list can't create an account or get a code, so add people to the family list before they first sign in. Without it, anyone who finds your site can have a code emailed to them (they still see nothing, but they use up your sending allowance).
 - This is built for one household per install. Running it as a service for other people's health data is a different matter (in the UK, for example, that brings UK GDPR obligations) and is not what this repository sets up.
 
@@ -103,6 +114,7 @@ There is no build step: the browser loads the files in `js/` directly as ES modu
 | `js/actions/` | Everything that changes data: logging, appointments, journal, settings |
 | `js/events.js` | Click, submit and change handling |
 | `js/push.js` | Reminder notification subscription |
+| `js/vendor/` | `@supabase/supabase-js` 2.45.4, from the npm package's `dist/umd` folder (MIT licence alongside) |
 | `supabase/` | Database setup SQL and the optional Edge Functions |
 
 To try changes locally, run `python3 -m http.server` in this folder and open `http://localhost:8000`.

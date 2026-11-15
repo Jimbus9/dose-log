@@ -15,6 +15,7 @@ import {loadEntries, scheduleReload} from "../data.js";
 
 /** Begin a log flow. `kind` is "long", "meal" or "snack". */
 export async function start(kind, force){
+  if (state.draft) discardDraft();
   if (kind === "long" && !force){
     await loadEntries();                // check the freshest log before allowing a second long-acting dose
     if (todays("long").length){ state.step = "already"; return render(); }
@@ -62,6 +63,7 @@ export async function save(){
   if (!state.entries.some(e => e.id === data.id)) state.entries.unshift(data);
   if (d.previewUrl && data.photo_path) state.photoUrls[data.photo_path] = {url: d.previewUrl, exp: Date.now() + 50 * 60000};
   state.last = data;
+  state.draft = null;                      // saved: its photo now belongs to the entry
   state.step = "tick";
   // The Undo button on the tick screen disappears after a minute.
   clearTimeout(state.undoTimer);
@@ -79,24 +81,40 @@ export async function undo(){
   if (e.photo_path) db.storage.from("photos").remove([e.photo_path]);
 }
 
+/** Leaving a log flow without saving: forget the draft and delete any photo already uploaded for it. */
+export function discardDraft(){
+  const path = state.draft?.photoPath;
+  state.draft = null;
+  if (path) db.storage.from("photos").remove([path]);
+}
+
 /* ---------- Photos ---------- */
 
 export async function onPhoto(file){
   if (!file) return;
   readFood();
-  state.draft.uploading = true; render();
+  const draft = state.draft;
+  draft.uploading = true; render();
   try {
     const blob = await shrink(file);
     const id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + "-" + Math.random().toString(36).slice(2));
     const path = new Date().getFullYear() + "/" + id + ".jpg";
     const {error} = await db.storage.from("photos").upload(path, blob, {contentType: "image/jpeg", upsert: false});
     if (error) throw error;
-    state.draft.photoPath = path;
-    state.draft.previewUrl = URL.createObjectURL(blob);
+    if (state.draft !== draft){                  // they left the screen while it uploaded
+      db.storage.from("photos").remove([path]);
+      return;
+    }
+    const replaced = draft.photoPath;           // "Take a different photo": drop the old one
+    if (replaced) db.storage.from("photos").remove([replaced]);
+    draft.photoPath = path;
+    draft.previewUrl = URL.createObjectURL(blob);
   } catch(e){
-    banner("The photo didn't upload. You can still write what you ate.");
+    if (state.draft === draft) banner("The photo didn't upload. You can still write what you ate.");
+  } finally {
+    draft.uploading = false;
   }
-  state.draft.uploading = false; render();
+  if (state.draft === draft) render();
 }
 
 /** Scale a phone photo down to at most 1200px and re-compress it, so uploads are quick and small. */
