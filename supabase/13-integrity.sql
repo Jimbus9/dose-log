@@ -31,6 +31,7 @@ grant execute on function public.is_logger() to authenticated;
 create or replace function public.stamp_author()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 declare
   col text := tg_argv[0];
@@ -51,6 +52,7 @@ $$;
 create or replace function public.entries_clear_checks()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   -- Written this way so it also works before 11-dose-checks.sql has added these columns.
@@ -105,3 +107,22 @@ create policy "logger can't edit appointments" on public.appointments as restric
   using (not public.is_logger()) with check (not public.is_logger());
 create policy "logger can't remove appointments" on public.appointments as restrictive for delete to authenticated
   using (not public.is_logger());
+
+-- ---------- Tidy-ups flagged by Supabase's Security Advisor ----------
+
+-- Pin the search path of the dose-check guard from 11-dose-checks.sql.
+do $$
+begin
+  if to_regprocedure('public.entries_guard_checks()') is not null then
+    alter function public.entries_guard_checks() set search_path = '';
+  end if;
+end $$;
+
+-- Projects created with "Enable automatic RLS" get this helper from Supabase. It only
+-- needs to run as an event trigger, never be called through the API.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;

@@ -11,6 +11,7 @@ alter table public.entries
 create or replace function public.entries_guard_checks()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   if current_user in ('authenticated', 'anon') and (
