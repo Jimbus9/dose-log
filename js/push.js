@@ -47,7 +47,7 @@ export async function enablePush(purpose = "reminders"){
     if (error) throw error;
     state.push = "on"; render();
     const msg = purpose === "alerts"
-      ? ["Dose alerts are on", "You'll get a notification here when a new dose is logged."]
+      ? ["Notifications are on", "You'll get a notification here when there's something new to see."]
       : ["Reminders are on", "You'll get a nudge here if a meal or dose hasn't been logged."];
     reg.showNotification(msg[0], {body: msg[1], icon: "icons/icon-192.png", tag: "dose-log-test"});
   } catch(e){

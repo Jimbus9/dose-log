@@ -122,6 +122,10 @@ Sent only to phones whose family-list role is "Logs doses", and only when nothin
 5. SQL Editor → run `supabase/07-schedule-reminders.sql` with `PASTE_YOUR_PROJECT_REF` and `PASTE_SYNC_SECRET` replaced, as above.
 6. On the dose-logging phone, open the app installed from Chrome and tap **Turn on reminders**.
 
+### Journal notifications
+
+Run `supabase/14-journal-alerts.sql` and redeploy the `reminders` function. Whenever someone adds or edits a journal entry, everyone else on the family list whose phone has notifications on (Settings → Notifications, or Turn on reminders on the Home-screen phone) gets a notification with the gist of it, within 5 minutes. The person who made the change isn't notified.
+
 ### Glucose history
 
 Readings are kept indefinitely. From the glucose card on the Log screen, **See past days** opens any day's graph with its doses and meals, a daily summary (average, share of readings in the 3.9–10 range, lows and highs), the last two weeks at a glance, and buttons to download everything as CSV files. Download a copy now and then: free Supabase projects don't come with backups you can download.

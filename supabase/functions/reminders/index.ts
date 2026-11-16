@@ -16,6 +16,10 @@
 // meal dose, every admin phone that has turned alerts on gets a notification
 // (needs supabase/11-dose-checks.sql). Each dose is alerted once.
 //
+// And journal alerts: when anyone adds or edits a journal entry, every other
+// family-list member's phone (any role) gets a notification with the gist of it
+// (needs supabase/14-journal-alerts.sql). The person who made the change isn't told.
+//
 // Test: POST with {"force": "breakfast"} (or lunch / evening / long) sends
 // that reminder straight away, skipping the time and log checks.
 // POST with {"test": "admins"} sends a test alert to admin phones.
@@ -140,6 +144,48 @@ async function doseAlerts(settings: Record<string, unknown>) {
   return `${fresh.length} dose${fresh.length === 1 ? "" : "s"}, ${sent} notification${sent === 1 ? "" : "s"}`;
 }
 
+// New or edited journal entries -> one notification each to everyone except the author.
+async function journalAlerts() {
+  const since = new Date(Date.now() - 30 * 60000).toISOString();   // don't announce old changes
+  const { data, error } = await db.from("journal").select("*").gte("updated_at", since).order("updated_at");
+  if (error) {
+    if (/notified_at|edited_by/.test(error.message)) return "not set up (run 14-journal-alerts.sql)";
+    throw new Error("Reading the journal failed: " + error.message);
+  }
+  if (!data?.length || !("notified_at" in data[0])) return data?.length ? "not set up (run 14-journal-alerts.sql)" : "none";
+  const fresh = data.filter((n) => !n.notified_at || new Date(n.updated_at) > new Date(n.notified_at));
+  if (!fresh.length) return "none";
+
+  const { data: members, error: e1 } = await db.from("members").select("email,name");
+  if (e1) throw new Error("Reading the family list failed: " + e1.message);
+  const nameOf = (email: string | null) => {
+    const m = (members ?? []).find((x) => x.email === email);
+    return (m?.name || "").trim() || (email ? email.split("@")[0] : "Someone");
+  };
+
+  let sent = 0;
+  for (const n of fresh) {
+    const actor = n.edited_by || n.written_by;
+    const isNew = !n.notified_at;
+    let heading = (n.title || "").trim();
+    if (n.appointment_id) {
+      const { data: a } = await db.from("appointments").select("title").eq("id", n.appointment_id).maybeSingle();
+      if (a?.title) heading = a.title;
+    }
+    const summary = String(n.summary || "").replace(/\s+/g, " ").trim();
+    const recipients = new Set((members ?? []).map((m) => m.email as string).filter((e) => e !== actor));
+    sent += await sendToPhones(recipients, {
+      title: `${nameOf(actor)} ${isNew ? "added to" : "updated"} the journal`,
+      body: (heading ? heading + ": " : "") + (summary.length > 140 ? summary.slice(0, 137) + "…" : summary),
+      tag: "journal-" + n.id,
+      url: "./#journal",
+    });
+    // Marked even if no phone was reached, so an entry is never announced twice.
+    await db.from("journal").update({ notified_at: new Date().toISOString() }).eq("id", n.id);
+  }
+  return `${fresh.length} entr${fresh.length === 1 ? "y" : "ies"}, ${sent} notification${sent === 1 ? "" : "s"}`;
+}
+
 async function run(force?: Kind) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) throw new Error("VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY secret is missing.");
   const { data: st, error } = await db.from("settings").select("*").eq("id", 1).maybeSingle();
@@ -154,6 +200,8 @@ async function run(force?: Kind) {
   if (!force) {
     try { results.dose_alerts = await doseAlerts(st); }
     catch (e) { results.dose_alerts = "error: " + (e instanceof Error ? e.message : String(e)); }
+    try { results.journal_alerts = await journalAlerts(); }
+    catch (e) { results.journal_alerts = "error: " + (e instanceof Error ? e.message : String(e)); }
   }
 
   for (const r of REMINDERS) {

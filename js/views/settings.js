@@ -15,6 +15,7 @@ export function settingsView(){
     const admins = state.members.filter(m => m.role === ROLE.ADMIN).map(m => esc(m.name || m.email.split("@")[0])).join(", ");
     return `<div class="screen"><h1>Settings</h1>
         <p class="hint">Only an admin${admins ? " (" + admins + ")" : ""} can change settings or the family list.</p>
+        ${notificationsBlock()}
         ${signOutBlock}</div>`;
   }
 
@@ -54,7 +55,7 @@ export function settingsView(){
           <div class="field"><label for="set-rem-long">Long-acting</label><input class="input" id="set-rem-long" type="time" value="${esc(s.remind_long)}"></div>
         </div>
       </div>` : ""}
-      ${doseAlertsBlock()}
+      ${notificationsBlock()}
       <button class="primary dark" data-act="save-settings">Save settings</button>
       <p class="hint" id="set-msg"></p>
 
@@ -76,19 +77,25 @@ export function settingsView(){
     </div>`;
 }
 
-/** Admins can get a notification on their own phone whenever a new dose is logged. */
-function doseAlertsBlock(){
+/**
+ * Turn on notifications for this phone. Everyone gets told when the journal is
+ * added to or changed; admins also get dose alerts.
+ */
+function notificationsBlock(){
   if (!("remind_breakfast" in state.settings)) return "";      // notifications aren't set up yet
   const p = state.push;
+  const admin = isAdmin();
   let control;
   if (p === "checking") control = "";
-  else if (p === "unsupported") control = `<p class="hint">Install this app from Chrome (Android) or add it to the Home Screen (iPhone) to get alerts.</p>`;
-  else if (p === "on") control = `<p class="rem-on" style="text-align:left">🔔 Dose alerts are on for this phone</p>`;
+  else if (p === "unsupported") control = `<p class="hint">Install this app from Chrome (Android) or add it to the Home Screen (iPhone) to get notifications.</p>`;
+  else if (p === "on") control = `<p class="rem-on" style="text-align:left">🔔 Notifications are on for this phone</p>`;
   else if (p === "denied") control = `<p class="hint">Notifications are blocked for this app. Turn them on in the phone's settings, then come back here.</p>`;
-  else control = `<button class="secondary" data-act="alerts-on" ${p === "busy" ? "disabled" : ""}>${p === "busy" ? "Turning on…" : "Get dose alerts on this phone"}</button>`;
+  else control = `<button class="secondary" data-act="alerts-on" ${p === "busy" ? "disabled" : ""}>${p === "busy" ? "Turning on…" : "Get notifications on this phone"}</button>`;
   return `<div class="section">
-        <h2>Dose alerts</h2>
-        <p class="hint">Admins get a notification when a new dose is logged on the Home-screen phone, so it can be checked. Family members and the Home-screen phone don't get these.</p>
+        <h2>Notifications</h2>
+        <p class="hint">${admin
+          ? "You'll be told when a new dose is logged on the Home-screen phone, so it can be checked, and when someone adds to or changes the journal."
+          : "You'll be told when someone adds to or changes the journal."}</p>
         ${control}
       </div>`;
 }
