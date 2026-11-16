@@ -174,6 +174,7 @@ The database enforces all of this, not just the app (`09-admin-role.sql` and `13
 
 - Built around insulin, UK conventions (mmol/L, `en-GB` dates, UK-time reminders) and one household.
 - Needs a connection: there is no offline mode.
+- The glucose feed can stop without warning if Abbott changes LibreLinkUp. Always treat the sensor's own app as the source of truth.
 - Reminders need a phone and browser that support web push notifications. The app is built for Chrome on Android, installed to the home screen.
 
 ## Code map
