@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dose Log: a shared insulin log for families</title>
+<meta name="description" content="Dose Log is a simple, self-hosted app for logging insulin, meals and appointments, so a family helping someone with diabetes all sees the same picture.">
+<meta property="og:title" content="Dose Log">
+<meta property="og:description" content="A shared insulin log for families helping someone with diabetes. Three big buttons for them, one clear picture for everyone else.">
+<meta property="og:image" content="../docs/screenshots/home.png">
+<meta name="theme-color" content="#0E7471">
+<link rel="icon" type="image/png" href="../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root{
+  --bg:#F1F5F6; --surface:#FFFFFF; --ink:#13232A; --muted:#55666D; --line:#D3DDE0;
+  --long:#0E7471; --meal:#B9520C; --snack:#64489A; --ok:#1C7A3A;
+  --font:"Atkinson Hyperlegible", Verdana, "Segoe UI", system-ui, sans-serif;
+  --r:18px;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0D1518; --surface:#162228; --ink:#E7EFF1; --muted:#9BAEB5; --line:#2A3B42;
+  --long:#4CC0BB; --meal:#F0995A; --snack:#B49CE2; --ok:#62C784; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.55}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:20px;text-decoration:none}
+.brand img{width:36px;height:36px;border-radius:9px}
+.pill{display:inline-block;padding:10px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  text-decoration:none;font-weight:700;font-size:16px}
+.pill.dark{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding:36px 0 64px}
+.hero h1{font-size:clamp(38px,5.4vw,60px);line-height:1.05;margin:0 0 20px;letter-spacing:-.01em;text-wrap:balance}
+.hero h1 em{font-style:normal;color:var(--long)}
+.lede{font-size:21px;color:var(--muted);margin:0 0 28px;max-width:34ch}
+.ctas{display:flex;gap:12px;flex-wrap:wrap}
+.chips{display:flex;gap:8px;margin-top:28px;flex-wrap:wrap}
+.chip{font-size:15px;font-weight:700;padding:6px 12px;border-radius:999px;color:#fff}
+.chip.l{background:var(--long)} .chip.m{background:var(--meal)} .chip.s{background:var(--snack)}
+@media (prefers-color-scheme: dark){.chip{color:#0D1518}}
+
+.phone{position:relative;justify-self:center;width:min(300px,78vw);border-radius:40px;padding:12px;background:var(--ink);
+  box-shadow:0 30px 60px -20px rgba(19,35,42,.45)}
+.phone img{display:block;width:100%;border-radius:30px}
+.phone.tilt{transform:rotate(2.5deg)}
+
+section{padding:64px 0;border-top:1px solid var(--line)}
+.kicker{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--long);margin:0 0 10px}
+h2{font-size:clamp(28px,3.6vw,38px);line-height:1.15;margin:0 0 18px;text-wrap:balance}
+.story{display:grid;grid-template-columns:1fr 1fr;gap:48px}
+.story p{margin:0 0 16px}
+.quote{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--long);border-radius:var(--r);padding:26px 28px;
+  font-size:22px;line-height:1.4;font-weight:700;align-self:start}
+.quote small{display:block;margin-top:12px;font-size:16px;font-weight:400;color:var(--muted)}
+
+.screens{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:36px}
+.screens figure{margin:0}
+.screens .phone{width:100%;border-radius:34px;padding:10px}
+.screens .phone img{border-radius:25px}
+.screens figcaption{margin-top:18px}
+.screens figcaption b{display:block;font-size:20px;margin-bottom:4px}
+.screens figcaption span{color:var(--muted);font-size:17px}
+.note{color:var(--muted);font-size:15px;margin-top:20px}
+
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:32px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.card h3{margin:0 0 8px;font-size:19px;display:flex;align-items:center;gap:10px}
+.card h3 i{width:12px;height:12px;border-radius:50%;background:var(--c,var(--long));flex:none}
+.card p{margin:0;color:var(--muted);font-size:17px}
+
+.not{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start}
+.not .mark{width:48px;height:48px;border-radius:50%;border:3px solid var(--meal);color:var(--meal);display:grid;place-items:center;font-weight:700;font-size:26px}
+.not h2{font-size:26px;margin-bottom:8px}
+.not p{margin:0 0 10px;color:var(--muted)}
+
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px;counter-reset:n}
+.how .card{counter-increment:n}
+.how .card::before{content:counter(n);display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;
+  background:var(--ink);color:var(--bg);font-weight:700;margin-bottom:12px}
+
+footer{padding:40px 0 56px;border-top:1px solid var(--line);color:var(--muted);font-size:16px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:820px){
+  .hero,.story{grid-template-columns:1fr;gap:36px}
+  .hero{padding-top:12px}
+  .screens,.features,.how{grid-template-columns:1fr}
+  .screens .phone{width:min(300px,80vw);margin:0 auto}
+  .screens figcaption{text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <a class="brand" href="./"><img src="../icons/icon-192.png" alt="">Dose Log</a>
+  <a class="pill" href="https://github.com/Jimbus9/dose-log">GitHub</a>
+</header>
+
+<div class="hero">
+  <div>
+    <h1>One shared log, so the whole family <em>knows where things stand.</em></h1>
+    <p class="lede">Dose Log is a simple app for logging insulin, meals and appointments. Three big buttons for the person taking the doses. One clear picture for everyone helping them.</p>
+    <div class="ctas">
+      <a class="pill dark" href="https://github.com/Jimbus9/dose-log#set-up-your-own">Set up your own</a>
+      <a class="pill" href="#screens">See the app</a>
+    </div>
+    <div class="chips"><span class="chip l">Long-acting</span><span class="chip m">Meal + insulin</span><span class="chip s">Snack</span></div>
+  </div>
+  <div class="phone tilt"><img src="../docs/screenshots/home.png" alt="Home screen: big buttons for long-acting insulin, meal plus insulin, and snack, with today's entries below"></div>
+</div>
+
+<section>
+  <div class="story">
+    <div>
+      <p class="kicker">Why it exists</p>
+      <h2>I built it for my dad.</h2>
+      <p>My dad has diabetes, and a few of us in the family help out. Before this, keeping track meant screenshots, texts and phone calls: has he had his long-acting today? What did he eat? What did the nurse say?</p>
+      <p>Several of us took him to appointments, and each time the news had to be passed round by word of mouth. Everyone needed the same information, and nobody had all of it.</p>
+      <p>The apps that already exist are either built for the person managing their own diabetes, with graphs and settings everywhere, or built for carers. Nothing was simple enough for Dad to use and shared enough for the rest of us.</p>
+    </div>
+    <div class="quote">
+      Dad taps a big button. The rest of us see it straight away.
+      <small>That's the whole idea. Everything else is there to support it.</small>
+    </div>
+  </div>
+</section>
+
+<section id="screens">
+  <p class="kicker">What it looks like</p>
+  <h2>Big and plain where it counts.</h2>
+  <div class="screens">
+    <figure>
+      <div class="phone"><img src="../docs/screenshots/home.png" alt="Home screen with three large buttons"></div>
+      <figcaption><b>Home</b><span>Three buttons, large text, nothing else to learn. Food can be a photo, a few words, or carbs.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="phone"><img src="../docs/screenshots/log.png" alt="Log screen with today's doses and a glucose graph"></div>
+      <figcaption><b>Log</b><span>Today at a glance for the family, with glucose readings and every dose marked on the graph.</span></figcaption>
+    </figure>
+    <figure>
+      <div class="phone"><img src="../docs/screenshots/journal.png" alt="Journal screen with an appointment write-up"></div>
+      <figcaption><b>Journal</b><span>Whoever went to the appointment writes down what was said, so nobody has to ask.</span></figcaption>
+    </figure>
+  </div>
+  <p class="note">Screenshots use made-up data.</p>
+</section>
+
+<section>
+  <p class="kicker">What it does</p>
+  <h2>A few features, chosen on purpose.</h2>
+  <div class="features">
+    <div class="card" style="--c:var(--long)"><h3><i></i>Second-dose warning</h3><p>Tap long-acting twice in one day and it asks first. The family gets a flag if it hasn't been logged by a set time.</p></div>
+    <div class="card" style="--c:var(--meal)"><h3><i></i>Reminders</h3><p>A notification on their phone if a meal or dose hasn't been logged yet. Nothing if it has.</p></div>
+    <div class="card" style="--c:var(--snack)"><h3><i></i>Glucose graph</h3><p>Optional readings from LibreLinkUp, with doses and meals marked on the same timeline.</p></div>
+    <div class="card"><h3><i></i>Shared calendar</h3><p>Appointments in one place. The home screen shows the next one coming up.</p></div>
+    <div class="card"><h3><i></i>Checked by family</h3><p>Admins can mark each dose as seen and agreed, and get an alert when a new one is logged.</p></div>
+    <div class="card"><h3><i></i>Private by design</h3><p>Only emails on your family list can sign in. The database enforces that on every request.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="not">
+    <div class="mark" aria-hidden="true">!</div>
+    <div>
+      <h2>A log, not a doctor.</h2>
+      <p>Dose Log only records what the person says they took. It never suggests, calculates or adjusts a dose, and it never will. Always follow your diabetes team's plan.</p>
+      <p>It isn't a medical device, and it comes with no warranty.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">Use it yourself</p>
+  <h2>Your copy, your data.</h2>
+  <p style="color:var(--muted);max-width:60ch;margin:0">Dose Log isn't a service you sign up to. It's free, open-source code you run for your own household, so your family's health information stays in your own account and nobody else's.</p>
+  <div class="how">
+    <div class="card"><h3>Copy the code</h3><p>Fork the repository into your own GitHub account.</p></div>
+    <div class="card"><h3>Make a database</h3><p>Create a free Supabase project and run the setup files.</p></div>
+    <div class="card"><h3>Install on each phone</h3><p>Open it in Chrome, add it to the home screen, and sign in.</p></div>
+  </div>
+  <p style="margin-top:28px"><a class="pill dark" href="https://github.com/Jimbus9/dose-log#set-up-your-own">Full setup guide on GitHub</a></p>
+  <p class="note">Takes about an hour. Built for Chrome on Android, UK units (mmol/L) and one household per install.</p>
+</section>
+
+<footer>
+  <span>Dose Log, made by <a href="https://github.com/Jimbus9">Jimbus9</a>. MIT licence.</span>
+  <span><a href="https://github.com/Jimbus9/dose-log">Source code</a></span>
+</footer>
+
+</div>
+</body>
+</html>
